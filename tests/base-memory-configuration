@@ -1,0 +1,2 @@
+# Memory configuration for allocator posix
+Size 4096 MBytes
