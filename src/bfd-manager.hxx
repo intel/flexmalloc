@@ -6,6 +6,10 @@
 
 #include <bfd.h>
 
+#define bfd_get_section_size(ptr) ((ptr)->size)
+#define bfd_get_section_vma(bfd, ptr) ((void) bfd, (ptr)->vma)
+#define bfd_get_section_flags(bfd, ptr) ((void) bfd, (ptr)->flags)
+
 class BFDManager
 {
 	private:
