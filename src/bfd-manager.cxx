@@ -122,16 +122,16 @@ static void find_address_in_section (bfd *abfd, asection *section, PTR data)
 	if (sdata->found)
 		return;
 
-	if ((bfd_get_section_flags (abfd, section) & SEC_ALLOC) == 0)
+	if ((bfd_section_flags (section) & SEC_ALLOC) == 0)
 		return;
 
-	vma = bfd_get_section_vma (abfd, section);;
+	vma = bfd_section_vma (section);
 
 	if (sdata->pc < vma)
 		return;
 
 #if HAVE_BFD_GET_SECTION_SIZE
-	size = bfd_get_section_size (section);
+	size = bfd_section_size (section);
 	if (sdata->pc >= vma + size)
 		return;
 #elif HAVE_BFD_GET_SECTION_SIZE_BEFORE_RELOC
