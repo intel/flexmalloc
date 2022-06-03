@@ -97,6 +97,6 @@ Intel is a trademark of Intel Corporation or its subsidiaries.
 
 \* Other names and brands may be claimed as the property of others.
 
-We welcome anyone interested in using, developing or contributing in openacc2openmp!
+We welcome anyone interested in using, developing or contributing in Flexible Memory Tool!
 
 Go to [top](#top)
