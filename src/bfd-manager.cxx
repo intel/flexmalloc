@@ -125,7 +125,7 @@ static void find_address_in_section (bfd *abfd, asection *section, PTR data)
 	if ((bfd_get_section_flags (abfd, section) & SEC_ALLOC) == 0)
 		return;
 
-	vma = bfd_get_section_vma (abfd, section);;
+	vma = bfd_get_section_vma (abfd, section);
 
 	if (sdata->pc < vma)
 		return;
