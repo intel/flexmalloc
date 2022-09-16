@@ -436,7 +436,10 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 
 		if (p_current[0] != '#')
 		{
-			_locations = (location_t*) _af.realloc (_locations, sizeof(location_t)*(_nlocations+1));
+			if (_locations == nullptr)
+			{
+				_locations = (location_t*) _af.realloc (_locations, sizeof(location_t)*(_nlocations+1));
+			}
 
 			// Process source location and see if it is correctly processed (and not ignored).
 			if (options.sourceFrames() &&
