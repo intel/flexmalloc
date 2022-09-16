@@ -241,7 +241,8 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 	DBG("Processing '%s'\n", location_txt);
 
 	// Make sure it contains a @ symbol
-	if (strchr (location_txt, '@') == nullptr)
+	char *allocator_marker = strchr (location_txt, '@');
+	if (allocator_marker == nullptr)
 	{
 		VERBOSE_MSG(0, "Error! Cannot find allocator marker.\n");
 		return false;
@@ -250,8 +251,7 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 	// Identify allocator first
 	char allocator[PATH_MAX];
 	memset (allocator, 0, sizeof(char)*PATH_MAX);
-	memcpy (allocator, strchr(location_txt, '@')+2,
-	  strchr(location_txt, '\n') - (strchr (location_txt, '@') + 2));
+	memcpy (allocator, allocator_marker+2, strchr(location_txt, '\n') - (allocator_marker+2));
 	// +2 because we skip @ && the following space
 
 	location->allocator = _allocators->get (allocator);
@@ -276,7 +276,8 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 	assert (frame != nullptr);
 
 	location->nframes = 0;
-	while (frame != nullptr && frame < allocator)
+	// Process the line with frames until the allocator marker is found
+	while (frame != nullptr && frame < allocator_marker)
 	{
 		location->nframes++;
 		if (strchr (frame+1, '\n') < strchr (frame+1, '!'))
