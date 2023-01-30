@@ -655,19 +655,45 @@ void * FlexMalloc::realloc (unsigned nptrs, void **callstack, void *ptr, size_t 
 				new_allocator->record_self_realloc (prev_size);
 		}
 
-		// Identify whether the previous allocation did fit to substract
-		// the amount of memory used. For this, we check if requested
-		// allocator matches the used allocator.
-		if (valid_prev_CL)
+		if (prev_allocator != new_allocator)
 		{
-			bool prev_fit = _cl->allocator (prev_CL) == prev_allocator;
-			_cl->record_location_sub_memory (prev_CL, prev_size, !prev_fit);
+			// Identify whether the previous allocation did fit to substract
+			// the amount of memory used. For this, we check if requested
+			// allocator matches the used allocator.
+			if (valid_prev_CL)
+			{
+				bool prev_fit = _cl->allocator (prev_CL) == prev_allocator;
+				_cl->record_location_sub_memory (prev_CL, prev_size, !prev_fit);
+			}
+			// Save code location to quantify HWM per location
+			if (save_CL)
+			{
+				Allocator::codeLocation (res, CL);
+				_cl->record_location_add_memory (CL, new_size, !fits);
+			}
 		}
-		// Save code location to quantify HWM per location
-		if (save_CL)
+		else
 		{
-			Allocator::codeLocation (res, CL);
-			_cl->record_location_add_memory (CL, new_size, !fits);
+			// Only update statistics if new buffer is actually bigger than
+			// old buffer
+			
+			// Identify whether the previous allocation did fit to substract
+			// the amount of memory used. For this, we check if requested
+			// allocator matches the used allocator.
+			if (new_size > prev_size)
+			{
+				if (valid_prev_CL)
+				{
+					bool prev_fit = _cl->allocator (prev_CL) == prev_allocator;
+					_cl->record_location_sub_memory (prev_CL, prev_size, !prev_fit);
+				}
+				// Save code location to quantify HWM per location
+				if (save_CL)
+				{
+					Allocator::codeLocation (res, CL);
+					_cl->record_location_add_memory (CL, new_size, !fits);
+				}
+			}
 		}
 	}
 	else
