@@ -146,6 +146,7 @@ Allocators::Allocators (allocation_functions_t &af, const char *definitions)
 		}
 		defs = index (defs+1, '#'); // Search for next # Memory configuration
 	}
+	munmap(p, sb.st_size);
 }
 
 Allocators::~Allocators (void)
