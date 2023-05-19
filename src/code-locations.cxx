@@ -495,6 +495,7 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 	if (_nlocations > 0)
 		create_fast_indexes_for_frames();
 
+	munmap(p, sb.st_size);
 	return true;
 }
 
