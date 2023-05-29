@@ -853,6 +853,12 @@ void malloc_interposer_start (void)
 			_exit (0);
 		}
 	}
+
+	if (! fallback->is_ready()) {
+		VERBOSE_MSG(0, "The fallback allocator '%s' is not ready. Check if its parameters in the configuration file are correct. Exiting!\n", fallback->name());
+		_exit (0);
+	}
+
 	VERBOSE_MSG(0, "Fallback allocator set to '%s'\n", fallback->name());
 
 	if (fallback->has_size())
@@ -891,6 +897,11 @@ void malloc_interposer_start (void)
 			if (!fallback_smallAllocation)
 			{
 				VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator for small allocations. Exiting!\n", env);
+				_exit (0);
+			}
+
+			if (! fallback_smallAllocation->is_ready()) {
+				VERBOSE_MSG(0, "The fallback allocator for small allocations '%s' is not ready. Check if its parameters in the configuration file are correct.\n", fallback_smallAllocation->name());
 				_exit (0);
 			}
 		}

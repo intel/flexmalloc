@@ -199,6 +199,8 @@ void AllocatorPOSIX::configure (const char *config)
 		               " Size <NUM> MBytes\n");
 		exit (1);
 	}
+
+	_is_ready = true;
 }
 
 const char * AllocatorPOSIX::name (void) const

@@ -204,6 +204,8 @@ void AllocatorMemkindHBWMalloc::configure (const char *config)
 		               " Size <NUM> MBytes\n");
 		exit (1);
 	}
+
+	_is_ready = true;
 }
 
 const char * AllocatorMemkindHBWMalloc::name (void) const
