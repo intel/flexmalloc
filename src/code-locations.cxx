@@ -208,9 +208,23 @@ long CodeLocations::base_address_for_library (const char *lib)
 			{
 				// Check for execution bits, ignore the rest
 				if (strcmp (permissions, "r-xp") == 0 ||
-				    strcmp (permissions, "rwxp") == 0)
+					strcmp (permissions, "rwxp") == 0)
+				{
+					char module_buf[PATH_MAX] = {0};
+					const char * p_module = module_buf;
+					if (realpath(module, module_buf) == nullptr) {
+						VERBOSE_MSG (1, "Warning! Could not get realpath of %s\n", module);
+						p_module = module;
+					}
+					char lib_buf[PATH_MAX] = {0};
+					const char * p_lib = lib_buf;
+					if (realpath(lib, lib_buf) == nullptr) {
+						VERBOSE_MSG (1, "Warning! Could not get realpath of %s\n", lib);
+						p_lib = lib;
+					}
+
 					// Check if library matches
-					if (strcmp (module, lib) == 0)
+					if (strcmp (p_module, p_lib) == 0)
 					{
 						// Base address for main binary is 0
 						if (line_no == 0)
@@ -220,6 +234,7 @@ long CodeLocations::base_address_for_library (const char *lib)
 						// Stop iterating
 						break;
 					}
+				}
 			}
 			line_no++;
 		}
