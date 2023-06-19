@@ -74,7 +74,7 @@ class CodeLocations
 	bool process_raw_location (char *location_txt, location_t * location, const char * fallback_allocator_name);
 	void clean_source_location (location_t * location);
 	void show_frames (void);
-	long base_address_for_library (const char *lib);
+	long file_offset_to_address (const char *lib, unsigned long address);
 	void create_fast_indexes_for_frames (void);
 
 	public:

@@ -173,9 +173,10 @@ bool CodeLocations::process_source_location (char *location_txt, location_t * lo
 	return true;
 }
 
-long CodeLocations::base_address_for_library (const char *lib)
+long CodeLocations::file_offset_to_address (const char *lib, unsigned long offset)
 {
 	long baseAddress = 0;
+	unsigned long baseOffset = 0;
 
 	FILE * mapsfile = fopen ("/proc/self/maps", "r");
 
@@ -194,13 +195,13 @@ long CodeLocations::base_address_for_library (const char *lib)
 	while (!feof (mapsfile))
 		if (fgets (line, LINE_SIZE, mapsfile) != nullptr)
 		{
-			unsigned long start, end, offset;
+			unsigned long start, end;
 			char module[LINE_SIZE+1];
 			char permissions[5];
 
 			memset (module, 0, sizeof(char)*(LINE_SIZE+1));
 			bool entry_parsed = parse_proc_self_maps_entry (line, &start, &end,
-			  sizeof(permissions), permissions, &offset, LINE_SIZE, module);
+			  sizeof(permissions), permissions, &baseOffset, LINE_SIZE, module);
 			if (module[LINE_SIZE] != (char)0)
 				break;
 
@@ -227,12 +228,13 @@ long CodeLocations::base_address_for_library (const char *lib)
 					if (strcmp (p_module, p_lib) == 0)
 					{
 						// Base address for main binary is 0
-						if (line_no == 0)
+						if (line_no == 0) {
 							baseAddress = 0;
-						else
+							break; // Stop iterating
+						} else if (baseOffset <= offset && offset < (baseOffset + (end - start))) {
 							baseAddress = start;
-						// Stop iterating
-						break;
+							break; // Stop iterating
+						}
 					}
 				}
 			}
@@ -243,7 +245,7 @@ long CodeLocations::base_address_for_library (const char *lib)
 
 	DBG("Base address for library (%s) -> %lx\n", lib, baseAddress);
 
-	return baseAddress;
+	return baseAddress + (offset - baseOffset);
 }
 
 bool CodeLocations::process_raw_location (char *location_txt, location_t * location, const char *fallback_allocator_name)
@@ -317,15 +319,15 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 		memcpy (module, prev_frame, frame-prev_frame);
 
 		char *endptr;
-		long address = strtoul (frame+1, &endptr, 16);
+		long offset = strtoul (frame+1, &endptr, 16);
 		assert (endptr <= frame+1+16);
 
-		long base_address = base_address_for_library (module);
+		long address = file_offset_to_address (module, offset);
 
-		DBG("Address %lx in library %s gets relocated to %lx.\n", 
-		  address, module, address+base_address);
+		DBG("Offset %lx in file %s gets relocated to address %lx.\n",
+		  offset, module, address);
 
-		location->frames.raw[f].frame = address+base_address;
+		location->frames.raw[f].frame = address;
 
 		prev_frame = strchr (frame, '>') + 2;
 		if (prev_frame == nullptr)
