@@ -47,6 +47,9 @@ AllocatorMemkindPMEM::AllocatorMemkindPMEM (allocation_functions_t &af)
 
 AllocatorMemkindPMEM::~AllocatorMemkindPMEM ()
 {
+	// Explicitely call the deallocator as the new was done on pre-allocated memory
+	for (int i = 0; _num_NUMA_nodes > i; ++i)
+		_stats[i].~AllocatorStatistics();
 	_af.free (_stats);
 	_af.free (_kind);
 	_af.free (_cpu_2_NUMA);
