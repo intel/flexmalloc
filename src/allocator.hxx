@@ -68,7 +68,8 @@ class Allocator
 	virtual void*  realloc (void *, size_t) = 0;
 	virtual size_t malloc_usable_size (void*) = 0;
 
-	virtual void *memcpy (void *dest, const void *src, size_t n) = 0;
+	virtual void *memcpy (void *dest, const void *src, size_t n)
+	  { return ::memcpy(dest, src, n); }
 
 	virtual void configure (const char *) = 0;
 	virtual bool is_ready (void) const { return _is_ready; };

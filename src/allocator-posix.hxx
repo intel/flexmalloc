@@ -23,7 +23,4 @@ class AllocatorPOSIX final : public StatisticsRecorderAllocator
 	void   configure (const char *);
 	const char * name (void) const;
 	const char * description (void) const;
-	void *memcpy (void *dest, const void *src, size_t n)
-	  { return ::memcpy (dest, src, n); }
-
 };

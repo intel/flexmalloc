@@ -40,12 +40,12 @@ class AllocatorMemkindPMEM final : public Allocator
 	const char * description (void) const;
 	void show_statistics (void) const override;
 
-	void *memcpy (void *dest, const void *src, size_t n)
+	void *memcpy (void *dest, const void *src, size_t n) override
 	  {
 #if defined(PMDK_SUPPORTED)
 	    return ::pmem_memcpy (dest, src, n, 0);
 #else
-	    return ::memcpy (dest, src, n);
+	    return Allocator::memcpy(dest, src, n);
 #endif
 	  }
 
