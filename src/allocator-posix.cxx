@@ -13,7 +13,7 @@
 #define ALLOCATOR_NAME "posix"
 
 AllocatorPOSIX::AllocatorPOSIX (allocation_functions_t &af)
-  : Allocator (af)
+  : StatisticsRecorderAllocator (af)
 {
 }
 
@@ -35,7 +35,7 @@ void * AllocatorPOSIX::malloc (size_t size)
 
 		// Verbosity and emit statistics
 		VERBOSE_MSG(3, ALLOCATOR_NAME": Allocated %lu bytes in %p (hdr & base at %p) w/ allocator %s (%p)\n", size, res, Allocator::getAllocatorHeader (res), name(), this);
-		_stats.record_malloc (size);
+		record_malloc (size);
 	}
 
 	return res;
@@ -56,7 +56,7 @@ void * AllocatorPOSIX::calloc (size_t nmemb, size_t size)
 
 		// Verbosity and emit statistics
 		VERBOSE_MSG(3, ALLOCATOR_NAME": Allocated %lu bytes in %p (hdr & base %p) w/ allocator %s (%p)\n", size, res, Allocator::getAllocatorHeader (res), name(), this);
-		_stats.record_calloc (nmemb * size);
+		record_calloc (nmemb * size);
 	}
 
 	return res;
@@ -78,7 +78,7 @@ int AllocatorPOSIX::posix_memalign (void **ptr, size_t align, size_t size)
 
 		// Verbosity and emit statistics
 		VERBOSE_MSG(3, ALLOCATOR_NAME": Allocated %lu bytes in %p (hdr %p, base %p) w/ allocator %s (%p)\n", size, res, Allocator::getAllocatorHeader (res), baseptr, name(), this);
-		_stats.record_aligned_malloc (size + align);
+		record_aligned_malloc (size + align);
 
 		*ptr = res;
 		return 0;
@@ -93,8 +93,8 @@ void AllocatorPOSIX::free (void *ptr)
 
 	// When freeing the memory, need to free the base pointe
 	VERBOSE_MSG(3, ALLOCATOR_NAME": Freeing up pointer %p (hdr %p) w/ size - %lu (base pointer located in %p)\n", ptr, hdr, hdr->size, hdr->base_ptr);
-	
-	_stats.record_free (hdr->size);
+
+	record_free (hdr->size);
 	_af.free (hdr->base_ptr);
 }
 
@@ -124,7 +124,7 @@ void * AllocatorPOSIX::realloc (void *ptr, size_t size)
 				DBG("Reallocated (%ld->%ld [extra bytes = %lu]) from %p (base at %p, header at %p) into %p (base at %p, header at %p) w/ allocator %s (%p)\n", prev_size, size, extra_size, ptr, prev_baseptr, prev_hdr, res, new_baseptr, Allocator::getAllocatorHeader (res), name(), this);
 			}
 
-			_stats.record_realloc (size, prev_size);
+			record_realloc (size, prev_size);
 
 			return res;
 		}
@@ -137,7 +137,7 @@ void * AllocatorPOSIX::realloc (void *ptr, size_t size)
 	else
 	{
 		VERBOSE_MSG(3, ALLOCATOR_NAME": realloc (NULL, ...) forwarded to malloc\n");
-		_stats.record_realloc_forward_malloc();
+		record_realloc_forward_malloc();
 
 		return this->malloc (size);
 	}
@@ -213,12 +213,3 @@ const char * AllocatorPOSIX::description (void) const
 	return "Fallback allocator based on regular POSIX calls from system's libc";
 }
 
-void AllocatorPOSIX::show_statistics (void) const
-{
-	_stats.show_statistics (ALLOCATOR_NAME, true);
-}
-
-bool AllocatorPOSIX::fits (size_t s) const
-{
-	return _stats.water_mark() + s <= this->size();
-}

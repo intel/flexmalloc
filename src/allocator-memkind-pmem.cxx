@@ -57,11 +57,9 @@ AllocatorMemkindPMEM::~AllocatorMemkindPMEM ()
 
 void * AllocatorMemkindPMEM::malloc (size_t size)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
-	assert (0 <= n && n < _num_NUMA_nodes);
+	const short n = get_local_numa ();
 
-	DBG("Running on CPU %d - NUMA node %ld\n", cpu, n);
+	DBG("Running on CPU %d - NUMA node %hd\n", get_current_cpu (), n);
 
 	// Forward memory request to real malloc and reserve some space for the header
 	void * baseptr = memkind_malloc (_kind[n], Allocator::getTotalSize (size));
@@ -76,7 +74,7 @@ void * AllocatorMemkindPMEM::malloc (size_t size)
 
 		// Verbosity and emit statistics
 		VERBOSE_MSG(3, ALLOCATOR_NAME": Allocated %lu bytes in %p (hdr & base at %p) w/ allocator %s (%p)\n", size, res, Allocator::getAllocatorHeader (res), name(), this);
-		_stats[n].record_malloc (size);
+		record_malloc (size, n);
 	}
 
 	return res;
@@ -84,11 +82,9 @@ void * AllocatorMemkindPMEM::malloc (size_t size)
 
 void * AllocatorMemkindPMEM::calloc (size_t nmemb, size_t size)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
-	assert (0 <= n && n < _num_NUMA_nodes);
+	const short n = get_local_numa ();
 
-	DBG("Running on CPU %d - NUMA node %ld\n", cpu, n);
+	DBG("Running on CPU %d - NUMA node %hd\n", get_current_cpu (), n);
 
 	// Forward memory request to real malloc and request additional space to store
 	// the allocator and the basepointer
@@ -104,7 +100,7 @@ void * AllocatorMemkindPMEM::calloc (size_t nmemb, size_t size)
 
 		// Verbosity and emit statistics
 		VERBOSE_MSG(3, ALLOCATOR_NAME": Allocated %lu bytes in %p (hdr & base %p) w/ allocator %s (%p)\n", size, res, Allocator::getAllocatorHeader (res), name(), this);
-		_stats[n].record_calloc (nmemb * size);
+		record_calloc (nmemb * size, n);
 	}
 
 	return res;
@@ -114,11 +110,9 @@ int AllocatorMemkindPMEM::posix_memalign (void **ptr, size_t align, size_t size)
 {
 	assert (ptr != nullptr);
 
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
-	assert (0 <= n && n < _num_NUMA_nodes);
+	const short n = get_local_numa ();
 
-	DBG("Running on CPU %d - NUMA node %ld\n", cpu, n);
+	DBG("Running on CPU %d - NUMA node %hd\n", get_current_cpu (), n);
 
 	// Forward memory request to real malloc and request additional space to
 	// store the allocator and the basepointer
@@ -134,7 +128,7 @@ int AllocatorMemkindPMEM::posix_memalign (void **ptr, size_t align, size_t size)
 
 		// Verbosity and emit statistics
 		VERBOSE_MSG(3, ALLOCATOR_NAME": Allocated %lu bytes in %p (hdr %p, base %p) w/ allocator %s (%p)\n", size, res, Allocator::getAllocatorHeader (res), baseptr, name(), this);
-		_stats[n].record_aligned_malloc (size + align);
+		record_aligned_malloc (size + align, n);
 
 		*ptr = res;
 		return 0;
@@ -156,7 +150,7 @@ void AllocatorMemkindPMEM::free (void *ptr)
 	assert (gotnode);
 	assert (0 <= n && n < _num_NUMA_nodes);
 
-	_stats[n].record_free (hdr->size);
+	record_free (hdr->size, n);
 	memkind_free (_kind[n], hdr->base_ptr);
 }
 
@@ -193,7 +187,7 @@ void * AllocatorMemkindPMEM::realloc (void *ptr, size_t size)
 				DBG("Reallocated (%ld->%ld [extra bytes = %lu]) from %p (base at %p, header at %p) into %p (base at %p, header at %p) w/ allocator %s (%p) on node %d\n", prev_size, size, extra_size, ptr, prev_baseptr, prev_hdr, res, new_baseptr, Allocator::getAllocatorHeader (res), name(), this, n);
 			}
 
-			_stats[n].record_realloc (size, prev_size);
+			record_realloc (size, prev_size, n);
 
 			return res;
 		}
@@ -206,9 +200,7 @@ void * AllocatorMemkindPMEM::realloc (void *ptr, size_t size)
 	else
 	{
 		VERBOSE_MSG(3, ALLOCATOR_NAME": realloc (NULL, ...) forwarded to malloc\n");
-		int cpu = sched_getcpu();
-		long n = _cpu_2_NUMA[cpu];
-		_stats[n].record_realloc_forward_malloc();
+		record_realloc_forward_malloc();
 
 		return this->malloc (size);
 	}
@@ -344,71 +336,92 @@ void AllocatorMemkindPMEM::show_statistics (void) const
 	}
 }
 
-bool AllocatorMemkindPMEM::fits (size_t) const
+int AllocatorMemkindPMEM::get_current_cpu (void) const
+{
+	return sched_getcpu ();
+}
+
+short AllocatorMemkindPMEM::get_local_numa (void) const
+{
+	int cpu = get_current_cpu ();
+	short n = _cpu_2_NUMA[cpu];
+	assert (0 <= n && n < _num_NUMA_nodes);
+	return n;
+}
+
+bool AllocatorMemkindPMEM::fits (size_t,short) const
 {
 	return true;
 }
 
-size_t AllocatorMemkindPMEM::hwm (void) const
+size_t AllocatorMemkindPMEM::hwm (short n) const
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	return _stats[n].water_mark ();
 }
 
-void AllocatorMemkindPMEM::record_unfitted_malloc (size_t s)
+void AllocatorMemkindPMEM::record_malloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
+	_stats[n].record_malloc (s);
+}
+
+void AllocatorMemkindPMEM::record_calloc (size_t s, short n)
+{
+	_stats[n].record_calloc (s);
+}
+
+void AllocatorMemkindPMEM::record_aligned_malloc (size_t s, short n)
+{
+	_stats[n].record_aligned_malloc (s);
+}
+
+void AllocatorMemkindPMEM::record_realloc (size_t size, size_t prev_size, short n)
+{
+	_stats[n].record_realloc (size, prev_size);
+}
+
+void AllocatorMemkindPMEM::record_free (size_t s, short n)
+{
+	_stats[n].record_free (s);
+}
+
+
+void AllocatorMemkindPMEM::record_unfitted_malloc (size_t s, short n)
+{
 	_stats[n].record_unfitted_malloc (s);
 }
 
-void AllocatorMemkindPMEM::record_unfitted_calloc (size_t s)
+void AllocatorMemkindPMEM::record_unfitted_calloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_unfitted_calloc (s);
 }
 
-void AllocatorMemkindPMEM::record_unfitted_aligned_malloc (size_t s)
+void AllocatorMemkindPMEM::record_unfitted_aligned_malloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_unfitted_aligned_malloc (s);
 }
 
-void AllocatorMemkindPMEM::record_unfitted_realloc (size_t s)
+void AllocatorMemkindPMEM::record_unfitted_realloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_unfitted_realloc (s);
 }
 
-void AllocatorMemkindPMEM::record_source_realloc (size_t s)
+void AllocatorMemkindPMEM::record_source_realloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_source_realloc (s);
 }
 
-void AllocatorMemkindPMEM::record_target_realloc (size_t s)
+void AllocatorMemkindPMEM::record_target_realloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_target_realloc (s);
 }
 
-void AllocatorMemkindPMEM::record_self_realloc (size_t s)
+void AllocatorMemkindPMEM::record_self_realloc (size_t s, short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_self_realloc (s);
 }
 
-void AllocatorMemkindPMEM::record_realloc_forward_malloc (void)
+void AllocatorMemkindPMEM::record_realloc_forward_malloc (short n)
 {
-	int cpu = sched_getcpu();
-	long n = _cpu_2_NUMA[cpu];
 	_stats[n].record_realloc_forward_malloc ();
 }
 

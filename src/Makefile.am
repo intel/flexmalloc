@@ -9,6 +9,7 @@ libflexmalloc_la_SOURCES = \
  allocator.cxx allocator.hxx \
  allocator-posix.cxx allocator-posix.hxx \
  allocator-statistics.cxx allocator-statistics.hxx \
+ statistics-recorder-allocator.hxx \
  cache-callstack.cxx cache-callstack.hxx \
  flex-malloc.cxx flex-malloc.hxx \
  malloc-interposer.cxx
