@@ -107,7 +107,7 @@ typedef struct symbol_information_st
 	bfd_boolean found;
 } symbol_information_t;
 
-static void find_address_in_section (bfd *abfd, asection *section, PTR data)
+static void find_address_in_section (bfd *abfd, asection *section, void *data)
 {
 	/* TODO fix this */
 #define HAVE_BFD_GET_SECTION_SIZE 1
