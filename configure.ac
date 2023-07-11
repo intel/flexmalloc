@@ -34,8 +34,8 @@ if test "${with_binutils}" = "no"; then
 	AC_MSG_FAILURE([--with-binutils=<DIR> is needed!])
 else
 	if test -r "${with_binutils}/include/bfd.h"; then
-		if test -r "${with_binutils}/lib/libbfd.so" -o "${with_binutils}/lib/${multiarch_triplet}/libbfd.so"; then
-			if test -r "${with_binutils}/lib/libiberty." -o "${with_binutils}/lib/${multiarch_triplet}/libiberty.a"; then
+		if test -r "${with_binutils}/lib/libbfd.so" -o -r "${with_binutils}/lib/${multiarch_triplet}/libbfd.so"; then
+			if test -r "${with_binutils}/lib/libiberty." -o -r "${with_binutils}/lib/${multiarch_triplet}/libiberty.a"; then
 				BINUTILS_HOME=${with_binutils}
 				AC_SUBST(BINUTILS_HOME)
 			else
