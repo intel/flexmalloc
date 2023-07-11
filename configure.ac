@@ -34,8 +34,8 @@ if test "${with_binutils}" = "no"; then
 	AC_MSG_FAILURE([--with-binutils=<DIR> is needed!])
 else
 	if test -r "${with_binutils}/include/bfd.h"; then
-		if test -r "${with_binutils}/lib/libbfd.so" -o -r "${with_binutils}/lib/${multiarch_triplet}/libbfd.so"; then
-			if test -r "${with_binutils}/lib/libiberty." -o -r "${with_binutils}/lib/${multiarch_triplet}/libiberty.a"; then
+		if test -r "${with_binutils}/lib/libbfd.so" -o -r "${with_binutils}/lib64/libbfd.so" -o -r "${with_binutils}/lib/${multiarch_triplet}/libbfd.so"; then
+			if test -r "${with_binutils}/lib/libiberty.a" -o -r "${with_binutils}/lib64/libiberty.a" -o -r "${with_binutils}/lib/${multiarch_triplet}/libiberty.a"; then
 				BINUTILS_HOME=${with_binutils}
 				AC_SUBST(BINUTILS_HOME)
 			else
@@ -56,7 +56,7 @@ AC_ARG_WITH([memkind],
 	[with_memkind="no"])
 if test "${with_memkind}" != "no"; then
 	if test -x "${with_memkind}/bin/memkind-hbw-nodes" ; then
-		if test -r "${with_memkind}/lib/libmemkind.so" -o -r "${with_memkind}/lib/${multiarch_triplet}/libmemkind.so" ; then
+		if test -r "${with_memkind}/lib/libmemkind.so" -o -r "${with_memkind}/lib64/libmemkind.so" -o -r "${with_memkind}/lib/${multiarch_triplet}/libmemkind.so" ; then
 			if test -r "${with_memkind}/include/memkind.h" -a -r "${with_memkind}/include/hbwmalloc.h"; then
 				MEMKIND_SUPPORT="yes"
 				AC_DEFINE([MEMKIND_SUPPORTED], [1], [Defined if Memkind is available])
