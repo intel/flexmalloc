@@ -113,9 +113,9 @@ AS_IF([test "${with_papi}" != "no"],
 	])
 AM_CONDITIONAL([HAVE_PAPI], [test "${PAPI_SUPPORT}" = "yes"])
 
-CFLAGS_saved=$CFLAGS
+CPPFLAGS_saved=$CPPFLAGS
 LIBS_saved=$LIBS
-CFLAGS="-I${MEMKIND_HOME}/include"
+CPPFLAGS="-I${MEMKIND_HOME}/include"
 LIBS="-L${MEMKIND_HOME}/lib -lmemkind"
 AC_MSG_CHECKING([for hbw_malloc_usable_size])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
@@ -139,7 +139,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 ],[
   AC_MSG_RESULT([no])
 ])
-CFLAGS=$CFLAGS_saved
+CPPFLAGS=$CPPFLAGS_saved
 LIBS=$LIBS_saved
 
 AC_CHECK_HEADERS([ \
