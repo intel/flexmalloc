@@ -40,6 +40,7 @@ class Allocator
 	size_t _size;
 	bool _used;
 	Allocator * _fallback;
+	bool _is_ready;
 	
 	public:
 	Allocator (allocation_functions_t &);
@@ -69,7 +70,9 @@ class Allocator
 
 	virtual void *memcpy (void *dest, const void *src, size_t n) = 0;
 
-	virtual void   configure (const char *) = 0;
+	virtual void configure (const char *) = 0;
+	virtual bool is_ready (void) const { return _is_ready; };
+
 	void size (size_t s) { _size = s; _has_size = s > 0; };
 	size_t size (void) const { return _size; };
 	bool has_size (void) const { return _has_size; };

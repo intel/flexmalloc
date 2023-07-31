@@ -315,6 +315,8 @@ void AllocatorMemkindPMEM::configure (const char *config)
 		VERBOSE_MSG(0, "Error! Incorrect number of PMEM nodes for PMEM allocator (%d). Should be equal to number of NUMA nodes (%d).\n", nnodes, _num_NUMA_nodes);
 		exit (-1);
 	}
+
+	_is_ready = true;
 }
 
 const char * AllocatorMemkindPMEM::name (void) const

@@ -272,7 +272,7 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 	location->allocator = _allocators->get (allocator);
 	if (location->allocator == nullptr)
 	{
-		VERBOSE_MSG (0, "Error! Given allocator '%s' does not exist in given memory definitions file.\n", allocator);
+		VERBOSE_MSG (0, "Error! Reference to unsupported allocator '%s' while processing raw location '%s'.\n", allocator, location_txt);
 		return false;
 	}
 
@@ -457,8 +457,9 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 			}
 
 			// Process source location and see if it is correctly processed (and not ignored).
+			bool is_valid = false;
 			if (options.sourceFrames() &&
-			    process_source_location (p_current, &_locations[_nlocations], fallback_allocator_name))
+				process_source_location (p_current, &_locations[_nlocations], fallback_allocator_name))
 			{
 				clean_source_location (&_locations[_nlocations]);
 				if (_locations[_nlocations].nframes > options.maxDepth())
@@ -473,16 +474,25 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 				memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
 				_locations[_nlocations].id = _nlocations+1;
 				_nlocations++;
+				is_valid = true;
 			}
 			// Process raw location and see if it is correctly processed (and not ignored).
 			if (!options.sourceFrames() &&
-			     process_raw_location (p_current, &_locations[_nlocations], fallback_allocator_name))
+				 process_raw_location (p_current, &_locations[_nlocations], fallback_allocator_name))
 			{
 				_min_nframes = MIN(_min_nframes, _locations[_nlocations].nframes);
 				_max_nframes = MAX(_max_nframes, _locations[_nlocations].nframes);
 				memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
 				_locations[_nlocations].id = _nlocations+1;
 				_nlocations++;
+				is_valid = true;
+			}
+
+			if (is_valid) {
+				if (! _locations[_nlocations-1].allocator->is_ready()) {
+					VERBOSE_MSG(0, "The allocator \"%s\" is not available. Check if its parameters in the configuration file are correct.\n", _locations[_nlocations-1].allocator->name());
+					exit (-1);
+				}
 			}
 		}
 		else
