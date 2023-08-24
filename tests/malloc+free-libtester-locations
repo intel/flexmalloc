@@ -1,4 +1,4 @@
 # Memory configuration with size 0 bytes on allocator posix
 # This is an example. The format is, one line per call-stack, on each line the complete call-stack
 # e.g. file1.c:line1 > file2.c:line2 > file3.c:line3 ... > fileN.c:lineN
-libtester.c:6 > malloc+free-libtester.c:9 > libc-start.c:342 @ posix
+malloc+free-libtester.c:9 > libtester.c:6 > libc-start.c:342 @ posix
