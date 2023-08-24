@@ -155,8 +155,7 @@ bool CodeLocations::process_source_location (char *location_txt, location_t * lo
 		// makes sense (not 0)
 		location->frames.source[f].valid =
 		    strcmp (location->frames.source[f].file, UNRESOLVED) != 0 &&
-		    strcmp (location->frames.source[f].file, NOT_FOUND) != 0 &&
-		    location->frames.source[f].line >= 0;;
+		    strcmp (location->frames.source[f].file, NOT_FOUND) != 0;
 
 		DBG("Frame %u - File = '%s' Line = %u Valid = %d\n", f,
 		  location->frames.source[f].file, location->frames.source[f].line, location->frames.source[f].valid );
