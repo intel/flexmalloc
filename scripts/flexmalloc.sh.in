@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FLEXMALLOC_HOME=@__sub_FLEXMALLOC_HOME__@
+FLEXMALLOC_HOME=@prefix@
 
 library=libflexmalloc
 if [[ ${FLEXMALLOC_DEBUG} == "1" ]] || [[ ${FLEXMALLOC_DEBUG} == "enabled" ]] || [[ ${FLEXMALLOC_DEBUG} == "yes" ]] ; then

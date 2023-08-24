@@ -2,9 +2,10 @@ EXTRA_DIST = malloc+free-libtester-locations \
 	malloc+free-locations \
     base-memory-configuration
 
-CFLAGS=
+AM_CPPFLAGS = -DDEBUG
+AM_CFLAGS = -g -O0
 
-lib_LTLIBRARIES = libtester.la
+noinst_LTLIBRARIES = libtester.la
 
 bin_PROGRAMS = malloc+free \
 	malloc+free-libtester \
@@ -36,7 +37,9 @@ posix_memalign_realloc_CFLAGS = -g -O0
 malloc_realloc_SOURCES = malloc+realloc.c
 malloc_realloc_CFLAGS = -g -O0
 
-install-data-hook:
-	$(mkdir_p) $(datadir)
-	cp $(srcdir)/*-locations $(srcdir)/base-memory-configuration $(datadir)
+testlocationsdir = $(datadir)
+dist_testlocations_DATA = malloc+free-libtester-locations  malloc+free-locations
+
+basememoryconfigurationdir = $(datadir)
+dist_basememoryconfiguration_DATA = base-memory-configuration
 

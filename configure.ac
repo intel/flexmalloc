@@ -2,6 +2,9 @@ AC_INIT(flexmalloc, 0.2.2, harald.servat@intel.com)
 AM_INIT_AUTOMAKE([tar-ustar no-dependencies])
 AM_SILENT_RULES([yes])
 
+AX_CONFIG_SCRIPT([scripts/flexmalloc.sh])
+AX_CONFIG_SCRIPT([scripts/count.sh])
+
 AC_CONFIG_HEADERS([flexmalloc-config.h])
 
 LT_INIT([dlopen,shared,pic,disable-static])
