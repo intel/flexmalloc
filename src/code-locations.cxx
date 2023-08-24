@@ -54,7 +54,7 @@ char * CodeLocations::find_and_set_allocator (char *location_txt, location_t * l
 
 	// Identify allocator first
 	char allocator[PATH_MAX] = {0};
-	size_t allocator_len = std::min(strchr(location_txt, '\n') - (allocator_marker+2), (std::ptrdiff_t) PATH_MAX-1);
+	size_t allocator_len = std::min(strcspn(allocator_marker+2, "\n"), (size_t) PATH_MAX-1);
 	memcpy (allocator, allocator_marker+2, allocator_len);
 	// +2 because we skip @ && the following space
 	allocator[allocator_len] = '\0';
@@ -81,19 +81,15 @@ char * CodeLocations::find_and_set_allocator (char *location_txt, location_t * l
 
 size_t CodeLocations::count_frames (char *location_txt, location_t * location, const char * const allocator_marker, char marker)
 {
-	// Count number of frames for this location
-	char * frame = strchr (location_txt, marker);
-	assert (frame != nullptr);
-
 	location->nframes = 0;
+
+	// Count number of frames for this location
 	// Process the line with frames until the allocator marker is found
-	while (frame != nullptr && frame < allocator_marker)
+	for (char * frame = strchr (location_txt, marker);
+			frame != nullptr && frame < allocator_marker;
+			frame = strchr (frame+1, marker))
 	{
 		location->nframes++;
-		if (strchr (frame+1, '\n') < strchr (frame+1, marker))
-			break;
-		else
-			frame = strchr (frame+1, marker);
 	}
 
 	DBG("Location contains %u frames.\n", location->nframes);
@@ -156,8 +152,7 @@ bool CodeLocations::process_source_location (char *location_txt, location_t * lo
 	// Process the frames for this location
 	char * prev_frame = location_txt;
 	char * frame = strchr (location_txt, ':');
-	unsigned f = 0;
-	while (f < location->nframes && frame != nullptr)
+	for (size_t f = 0; f < location->nframes && frame != nullptr; ++f)
 	{
 		char file[PATH_MAX] = {0};
 		size_t file_len = std::min (frame-prev_frame, (std::ptrdiff_t) PATH_MAX-1);
@@ -178,16 +173,11 @@ bool CodeLocations::process_source_location (char *location_txt, location_t * lo
 		    strcmp (location->frames.source[f].file, NOT_FOUND) != 0 &&
 		    location->frames.source[f].line >= 0;;
 
-		DBG("Frame %u - File = '%s' Line = %u Valid = %d\n", f,
+		DBG("Frame %zu - File = '%s' Line = %u Valid = %d\n", f,
 		  location->frames.source[f].file, location->frames.source[f].line, location->frames.source[f].valid );
 
 		prev_frame = strchr (endptr, '>') + 2;
-		if (prev_frame == nullptr)
-			break;
 		frame = strchr (endptr, ':');
-		if (frame == nullptr)
-			break;
-		f++;
 	}
 
 	return true;
@@ -288,8 +278,7 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 	// Process the frames for this location
 	char * prev_frame = location_txt;
 	char * frame = strchr (location_txt, '!');
-	unsigned f = 0;
-	while (f < location->nframes && frame != nullptr)
+	for (size_t f = 0; f < location->nframes && frame != nullptr; ++f)
 	{
 		char module[PATH_MAX] = {0};
 		size_t module_len = std::min(frame-prev_frame, (std::ptrdiff_t) PATH_MAX-1);
@@ -308,12 +297,7 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 		location->frames.raw[f].frame = address+base_address;
 
 		prev_frame = strchr (endptr, '>') + 2;
-		if (prev_frame == nullptr)
-			break;
 		frame = strchr (endptr, '!');
-		if (frame == nullptr)
-			break;
-		f++;
 	}
 
 	return true;
@@ -370,21 +354,14 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 		unsigned library_address_cnt = 0;
 		unsigned source_line_cnt     = 0;
 
-		char *p_current = p;
-		while (p_current < &p[sb.st_size])
+		for (char *p_current = p; p_current < &p[sb.st_size]; ++p_current)
 		{
 			if (*p_current == '!')
 				library_address_cnt++;
 			else if (*p_current == ':')
 				source_line_cnt++;
-			p_current++;
 		}
-		if (library_address_cnt == 0 && source_line_cnt == 0)
-		{
-			VERBOSE_MSG(0, "Error! Cannot determine whether the locations file contains raw or source code references\n");
-			exit (-1);
-		}
-		else if (library_address_cnt > 0 && source_line_cnt == 0)
+		if (library_address_cnt > 0 && source_line_cnt == 0)
 		{
 			VERBOSE_MSG(0, "Detected code locations format: raw references.\n");
 			options.sourceFrames (false);
@@ -394,7 +371,7 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 			VERBOSE_MSG(0, "Detected code locations format: source-code references.\n");
 			options.sourceFrames (true);
 		}
-		else if (library_address_cnt > 0 && source_line_cnt > 0)
+		else
 		{
 			VERBOSE_MSG(0, "Error! Cannot determine whether the locations file contains raw or source code references\n");
 			exit (-1);
@@ -402,83 +379,68 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 	}
 
 	_nlocations = 0;
-	char *p_current = p;
-	while (p_current < &p[sb.st_size])
+	for (char * p_current = p, *prevEOL = p; p_current != nullptr && p_current < &p[sb.st_size];
+			// prevEOL needs to be equal to p_current+1 except on the first iteration, as p_current points
+			// to the (n-1)-th '\n' at the begining of every iteration (excepted the first one).
+			p_current = strchr (p_current, '\n'), prevEOL = p_current + 1)
 	{
 		// Are there locations -- identified by @ presence
-		char *nextAT = strchr (p_current, '@');
-		char *nextEOL  = strchr (p_current, '\n');
-		if (nextAT != nullptr)
-		{
-			char *prevEOL = p_current;
-			// If there are locations, make sure that we start in the line that contains the @
-			while (nextEOL < nextAT)
-			{
-				prevEOL = nextEOL;
-				if (prevEOL != nullptr)
-					nextEOL = strchr (prevEOL, '\n');
-				else
-					break;
-				nextEOL++;
-			}
-			p_current = prevEOL;
-		}
-		else
+		char *nextAT = strchr (p_current + 1, '@');
+		if (nextAT == nullptr)
+			// No more locations
 			break;
 
-		if (p_current == nullptr)
-			break;
-
-		if (p_current[0] != '#')
+		// If there are locations, make sure that we start in the line that contains the @
+		for (char *nextEOL = strchr (prevEOL + 1, '\n');
+				nextEOL != nullptr && nextEOL < nextAT;
+				nextEOL = strchr (prevEOL, '\n'))
 		{
-			_locations = (location_t*) _af.realloc (_locations, sizeof(location_t)*(_nlocations+1));
-
-			// Process source location and see if it is correctly processed (and not ignored).
-			bool is_valid = false;
-			if (options.sourceFrames() &&
-				process_source_location (p_current, &_locations[_nlocations], fallback_allocator_name))
-			{
-				clean_source_location (&_locations[_nlocations]);
-				if (_locations[_nlocations].nframes > options.maxDepth())
-				{
-					VERBOSE_MSG(0, "* Warning! Location #%u was too long (%u frames). Truncated to %u frames.\n",
-					  _nlocations, _locations[_nlocations].nframes, options.maxDepth());
-					_locations[_nlocations].nframes = options.maxDepth();
-				}
-
-				_min_nframes = std::min(_min_nframes, _locations[_nlocations].nframes);
-				_max_nframes = std::max(_max_nframes, _locations[_nlocations].nframes);
-				memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
-				_locations[_nlocations].id = _nlocations+1;
-				_nlocations++;
-				is_valid = true;
-			}
-			// Process raw location and see if it is correctly processed (and not ignored).
-			if (!options.sourceFrames() &&
-				 process_raw_location (p_current, &_locations[_nlocations], fallback_allocator_name))
-			{
-				_min_nframes = std::min(_min_nframes, _locations[_nlocations].nframes);
-				_max_nframes = std::max(_max_nframes, _locations[_nlocations].nframes);
-				memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
-				_locations[_nlocations].id = _nlocations+1;
-				_nlocations++;
-				is_valid = true;
-			}
-
-			if (is_valid) {
-				if (! _locations[_nlocations-1].allocator->is_ready()) {
-					VERBOSE_MSG(0, "The allocator \"%s\" is not available. Check if its parameters in the configuration file are correct.\n", _locations[_nlocations-1].allocator->name());
-					exit (-1);
-				}
-			}
+			prevEOL = nextEOL + 1;
 		}
-		else
+		p_current = prevEOL;
+
+		if (p_current[0] == '#')
 		{
 			// COMMENT
+			continue;
 		}
 
-		p_current = strchr (p_current, '\n');
-		p_current++;
+		_locations = (location_t*) _af.realloc (_locations, sizeof(location_t)*(_nlocations+1));
+
+		// Process source location and see if it is correctly processed (and not ignored).
+		if (options.sourceFrames() &&
+				process_source_location (p_current, &_locations[_nlocations], fallback_allocator_name))
+		{
+			clean_source_location (&_locations[_nlocations]);
+			if (_locations[_nlocations].nframes > options.maxDepth())
+			{
+				VERBOSE_MSG(0, "* Warning! Location #%u was too long (%u frames). Truncated to %u frames.\n",
+						_nlocations+1, _locations[_nlocations].nframes, options.maxDepth());
+				_locations[_nlocations].nframes = options.maxDepth();
+			}
+		}
+		// Process raw location and see if it is correctly processed (and not ignored).
+		else if (!options.sourceFrames() &&
+				process_raw_location (p_current, &_locations[_nlocations], fallback_allocator_name))
+		{ // Nothing to be done.
+		}
+		// There has been an error while trying to process a location
+		else
+		{
+			VERBOSE_MSG(0, "* Warning! There has been an error while processing Location #%u. The location is ignored.\n", _nlocations+1);
+			continue;
+		}
+
+		if (! _locations[_nlocations].allocator->is_ready()) {
+			VERBOSE_MSG(0, "The allocator \"%s\" is not available. Check if its parameters in the configuration file are correct.\n", _locations[_nlocations].allocator->name());
+			exit (-1);
+		}
+
+		_min_nframes = std::min(_min_nframes, _locations[_nlocations].nframes);
+		_max_nframes = std::max(_max_nframes, _locations[_nlocations].nframes);
+		memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
+		_locations[_nlocations].id = _nlocations+1;
+		_nlocations++;
 	}
 
 	if (_nlocations > 0)
@@ -738,7 +700,7 @@ void CodeLocations::show_hmem_visualizer_stats (const char *fallback_allocator_n
 
 	// Additional information for extra fields
 	fprintf (options.messages_on_stderr()?stderr:stdout, "#vis extra_field_0 = hatch\n");
-	
+
 	// Data
 	// callstack;bytes;weight;memtype[;extrafield1;extrafield2;...]
 	for (unsigned l = 0; l < _nlocations; ++l)

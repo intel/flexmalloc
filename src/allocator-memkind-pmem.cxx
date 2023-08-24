@@ -1,5 +1,7 @@
 // Author: Harald Servat <harald.servat@intel.com>
 // Date: Feb 10, 2017
+// Author: Clement Foyer <clement.foyer@univ-reims.fr>
+// Date: Aug 24, 2023
 // License: To determine
 
 #include <stdlib.h>
@@ -35,11 +37,11 @@ AllocatorMemkindPMEM::AllocatorMemkindPMEM (allocation_functions_t &af)
 		_cpu_2_NUMA[c] = numa_node_of_cpu(c);
 
 	_kind = (memkind_t*) _af.malloc (sizeof(memkind_t)*_num_NUMA_nodes);
-	assert (_kind != nullptr);	
+	assert (_kind != nullptr);
 
 	_stats = (AllocatorStatistics*) _af.malloc (_num_NUMA_nodes * sizeof(AllocatorStatistics));
-	new (_stats) AllocatorStatistics[_num_NUMA_nodes];
 	assert (_stats != nullptr);
+	new (_stats) AllocatorStatistics[_num_NUMA_nodes];
 }
 
 AllocatorMemkindPMEM::~AllocatorMemkindPMEM ()
@@ -225,33 +227,30 @@ void AllocatorMemkindPMEM::configure (const char *config)
 	int nnodes = 0;
 
 #warning This casting is necessary for gcc 7.3.1/fedora 27
-	char *tmp = strchr ((char*)config, '@');
-	while (tmp != nullptr)
+	for (char *tmp = strchr ((char*)config, '@');
+			tmp != nullptr && nnodes < _num_NUMA_nodes;
+			tmp = strchr (tmp+1, '@'))
 	{
 		bool has_path = false;
-		char path[PATH_MAX];
-		memset (path, 0, sizeof(path));
+		char path[PATH_MAX] = {0};
 		{
-			// Copy into path the given path for PMEM -- skip 1 empty char after @
-			size_t idx = 0;
-			while (tmp[idx] != (char) 0)
+			// Copy into path the given path for PMEM -- skip every empty char after @
+			constexpr char blankchars[] = " \n\r\t\f\v";
+			size_t count = strspn(tmp, blankchars); // skip blank chars
+			const char* in = &tmp[count];
+			count = strcspn(in, blankchars); // count valid characters
+			if (count == 0 || *in == '\0')
 			{
-				idx++;
-				if (tmp[idx] != (char) 0)
-					if (tmp[idx] != ' ' && tmp[idx] != '\t')
-						break;
+				VERBOSE_MSG(0, "Error! pmem configuration line poorly formatted: nothing found after '@'.\n");
+				exit (-1);
 			}
-			const char *in = &tmp[idx];
-			size_t count = 0;
-			while (in[count] != ((char)0) && count+1 < sizeof(path))
-			{
-				if (in[count] == '\n' || in[count] == ' ' || in[count] == '\t')
-					break;
-				path[count] = in[count];
-				count++;
-			}
+			const size_t path_len = std::min(count, sizeof(path)-1);
+			memcpy(path, in, path_len);
+			path[path_len] = '\0';
+
 			// If we have read something, then we have a path (not necessarily absolute)
-			has_path = (count > 0 && count < sizeof(path));
+			// Also check for untruncated path
+			has_path = (count > 0 && path_len == count);
 		}
 
 		if (has_path)
@@ -304,10 +303,9 @@ void AllocatorMemkindPMEM::configure (const char *config)
 			}
 			else
 				VERBOSE_MSG(0, "* Successfully created PMEM on top of %s for NUMA node %d.\n", path, nnodes);
-	
+
 			nnodes++;
 		}
-		tmp = strchr (tmp+1, '@');
 	}
 
 	if (nnodes != _num_NUMA_nodes)
