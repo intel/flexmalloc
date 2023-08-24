@@ -70,6 +70,8 @@ class CodeLocations
 	unsigned get_min_index_for_number_of_frames (unsigned nframes) const;
 	unsigned get_max_index_for_number_of_frames (unsigned nframes) const;
 
+	char * find_and_set_allocator (char *location_txt, location_t * location, const char * fallback_allocator_name);
+	size_t count_frames (char *location_txt, location_t * location, const char * const allocator_marker, char marker);
 	bool process_source_location (char *location_txt, location_t * location, const char * fallback_allocator_name);
 	bool process_raw_location (char *location_txt, location_t * location, const char * fallback_allocator_name);
 	void clean_source_location (location_t * location);

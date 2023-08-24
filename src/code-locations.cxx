@@ -1,5 +1,7 @@
 // Authors: Harald Servat <harald.servat@intel.com>
 // Date: 02/02/2017
+// Author: Clement Foyer <clement.foyer@univ-reims.fr>
+// Date: 24/08/2023
 // License: 
 
 #include <stdio.h>
@@ -40,6 +42,65 @@ bool CodeLocations::comparator_by_NumberOfFrames (const location_t &lhs, const l
 	return lhs.nframes < rhs.nframes;
 }
 
+char * CodeLocations::find_and_set_allocator (char *location_txt, location_t * location, const char * fallback_allocator_name)
+{
+	// Make sure it contains a @ symbol
+	char *allocator_marker = strchr (location_txt, '@');
+	if (allocator_marker == nullptr)
+	{
+		VERBOSE_MSG(0, "Error! Cannot find allocator marker.\n");
+		return nullptr;
+	}
+
+	// Identify allocator first
+	char allocator[PATH_MAX] = {0};
+	size_t allocator_len = std::min(strchr(location_txt, '\n') - (allocator_marker+2), (std::ptrdiff_t) PATH_MAX-1);
+	memcpy (allocator, allocator_marker+2, allocator_len);
+	// +2 because we skip @ && the following space
+	allocator[allocator_len] = '\0';
+
+	location->allocator = _allocators->get (allocator);
+	if (location->allocator == nullptr)
+	{
+		VERBOSE_MSG (0, "Error! Given allocator '%s' does not exist in given memory definitions file.\n", allocator);
+		return nullptr;
+	}
+
+	// Mark the allocator as used
+	location->allocator->used (true);
+
+	if (strcmp(allocator, fallback_allocator_name) == 0 && options.ignoreIfFallbackAllocator())
+	{
+		DBG("Refusing this location as it is already handled by the fallback allocator (%s).\n",
+		  fallback_allocator_name);
+		return nullptr;
+	}
+
+	return allocator_marker;
+}
+
+size_t CodeLocations::count_frames (char *location_txt, location_t * location, const char * const allocator_marker, char marker)
+{
+	// Count number of frames for this location
+	char * frame = strchr (location_txt, marker);
+	assert (frame != nullptr);
+
+	location->nframes = 0;
+	// Process the line with frames until the allocator marker is found
+	while (frame != nullptr && frame < allocator_marker)
+	{
+		location->nframes++;
+		if (strchr (frame+1, '\n') < strchr (frame+1, marker))
+			break;
+		else
+			frame = strchr (frame+1, marker);
+	}
+
+	DBG("Location contains %u frames.\n", location->nframes);
+
+	return location->nframes;
+}
+
 void CodeLocations::clean_source_location (location_t * l)
 {
 #define UNRESOLVED        "Unresolved" // Paraver label for unresolved symbols
@@ -75,74 +136,33 @@ void CodeLocations::clean_source_location (location_t * l)
 bool CodeLocations::process_source_location (char *location_txt, location_t * location, const char *fallback_allocator_name)
 {
 	/* Example of parsing line:
-	   /home/harald/src/intel-tools.git/mini-tools/auto-hbwmalloc/src/tests/libtester.c:6 > /home/harald/src/intel-tools.git/mini-tools/auto-hbwmalloc/src/tests/hello-world-libtester.c:9 @ posix 
+	   /home/harald/src/intel-tools.git/mini-tools/auto-hbwmalloc/src/tests/libtester.c:6 > /home/harald/src/intel-tools.git/mini-tools/auto-hbwmalloc/src/tests/hello-world-libtester.c:9 @ posix
 	   (final EoL is required)
 	*/
 
 	DBG("Processing '%s'\n", location_txt);
 
-	// Make sure it contains a @ symbol
-	char *allocator_marker = strchr (location_txt, '@');
-	if (allocator_marker  == nullptr)
-	{
-		VERBOSE_MSG(0, "Error! Cannot find allocator marker.\n");
+	// Find and set allocator in location
+	char *allocator_marker = find_and_set_allocator (location_txt, location, fallback_allocator_name);
+	if (allocator_marker == nullptr) // forward error
 		return false;
-	}
 
-	// Identify allocator first
-	char allocator[PATH_MAX];
-	memset (allocator, 0, sizeof(char)*PATH_MAX);
-	memcpy (allocator, allocator_marker+2, strchr(location_txt, '\n') - (allocator_marker+2));
-	// +2 because we skip @ && the following space
-
-	location->allocator = _allocators->get (allocator);
-	if (location->allocator == nullptr)
-	{
-		VERBOSE_MSG (0, "Error! Given allocator '%s' does not exist in given memory definitions file.\n", allocator);
-		return false;
-	}
-
-	// Mark the allocator as used
-	location->allocator->used (true);
-
-	if (strcmp(allocator, fallback_allocator_name) == 0 && options.ignoreIfFallbackAllocator())
-	{
-		DBG("Refusing this location as it is already handled by the fallback allocator (%s).\n",
-		  fallback_allocator_name);
-		return false;
-	}
-
-	// Count number of frames for this location
-	char * frame = strchr (location_txt, ':');
-	assert (frame != nullptr);
-
-	location->nframes = 0;
-	// Process the line with frames until the allocator marker is found
-	while (frame != nullptr && frame < allocator_marker)
-	{
-		location->nframes++;
-		if (strchr (frame+1, '\n') < strchr (frame+1, ':'))
-			break;
-		else
-			frame = strchr (frame+1, ':');
-	}
-
-	DBG("Location contains %u frames.\n", location->nframes);
+	count_frames (location_txt, location, allocator_marker, ':');
+	assert(location->nframes > 0);
 
 	location->frames.source = (source_frame_t*) _af.realloc (nullptr, sizeof(source_frame_t)*location->nframes);
 	assert (location->frames.source != nullptr);
 
 	// Process the frames for this location
 	char * prev_frame = location_txt;
-	frame = strchr (location_txt, ':');
+	char * frame = strchr (location_txt, ':');
 	unsigned f = 0;
 	while (f < location->nframes && frame != nullptr)
 	{
-		char file[PATH_MAX];
-		memset (file, 0, sizeof(char)*PATH_MAX);
-		memset (location->frames.source[f].file, 0, sizeof(char)*PATH_MAX);
-
-		memcpy (file, prev_frame, frame-prev_frame);
+		char file[PATH_MAX] = {0};
+		size_t file_len = std::min (frame-prev_frame, (std::ptrdiff_t) PATH_MAX-1);
+		memcpy (file, prev_frame, file_len);
+		file[file_len] = '\0';
 		if (options.compareWholePath())
 			snprintf (location->frames.source[f].file, PATH_MAX, "%s", file);
 		else
@@ -161,10 +181,10 @@ bool CodeLocations::process_source_location (char *location_txt, location_t * lo
 		DBG("Frame %u - File = '%s' Line = %u Valid = %d\n", f,
 		  location->frames.source[f].file, location->frames.source[f].line, location->frames.source[f].valid );
 
-		prev_frame = strchr (frame, '>') + 2;
+		prev_frame = strchr (endptr, '>') + 2;
 		if (prev_frame == nullptr)
 			break;
-		frame = strchr (frame+1, ':');
+		frame = strchr (endptr, ':');
 		if (frame == nullptr)
 			break;
 		f++;
@@ -195,10 +215,9 @@ long CodeLocations::base_address_for_library (const char *lib)
 		if (fgets (line, LINE_SIZE, mapsfile) != nullptr)
 		{
 			unsigned long start, end, offset;
-			char module[LINE_SIZE+1];
+			char module[LINE_SIZE+1] = {0};
 			char permissions[5];
 
-			memset (module, 0, sizeof(char)*(LINE_SIZE+1));
 			bool entry_parsed = parse_proc_self_maps_entry (line, &start, &end,
 			  sizeof(permissions), permissions, &offset, LINE_SIZE, module);
 			if (module[LINE_SIZE] != (char)0)
@@ -249,72 +268,33 @@ long CodeLocations::base_address_for_library (const char *lib)
 bool CodeLocations::process_raw_location (char *location_txt, location_t * location, const char *fallback_allocator_name)
 {
 	/* Example of parsing line:
-	   beefdead > deadbeef > beefbeef @ posix
+	   beefdead!offset1 > deadbeef!offset2 > beefbeef!offset3 @ posix
 	   (final EoL is required)
 	*/
 
 	DBG("Processing '%s'\n", location_txt);
 
-	// Make sure it contains a @ symbol
-	char *allocator_marker = strchr (location_txt, '@');
-	if (allocator_marker == nullptr)
-	{
-		VERBOSE_MSG(0, "Error! Cannot find allocator marker.\n");
+	// Find and set allocator in location
+	char *allocator_marker = find_and_set_allocator (location_txt, location, fallback_allocator_name);
+	if (allocator_marker == nullptr) // forward error
 		return false;
-	}
 
-	// Identify allocator first
-	char allocator[PATH_MAX];
-	memset (allocator, 0, sizeof(char)*PATH_MAX);
-	memcpy (allocator, allocator_marker+2, strchr(location_txt, '\n') - (allocator_marker+2));
-	// +2 because we skip @ && the following space
-
-	location->allocator = _allocators->get (allocator);
-	if (location->allocator == nullptr)
-	{
-		VERBOSE_MSG (0, "Error! Reference to unsupported allocator '%s' while processing raw location '%s'.\n", allocator, location_txt);
-		return false;
-	}
-
-	// Mark the allocator as used
-	location->allocator->used (true);
-
-	if (strcmp(allocator, fallback_allocator_name) == 0 && options.ignoreIfFallbackAllocator())
-	{
-		DBG("Refusing this location as it is already handled by the fallback allocator (%s).\n",
-		  fallback_allocator_name);
-		return false;
-	}
-
-	// Count number of frames for this location
-	char * frame = strchr (location_txt, '!');
-	assert (frame != nullptr);
-
-	location->nframes = 0;
-	// Process the line with frames until the allocator marker is found
-	while (frame != nullptr && frame < allocator_marker)
-	{
-		location->nframes++;
-		if (strchr (frame+1, '\n') < strchr (frame+1, '!'))
-			break;
-		else
-			frame = strchr (frame+1, '!');
-	}
-
-	DBG("Location contains %u frames.\n", location->nframes);
+	count_frames (location_txt, location, allocator_marker, '!');
+	assert(location->nframes > 0);
 
 	location->frames.raw = (raw_frame_t*) _af.realloc (nullptr, sizeof(raw_frame_t)*location->nframes);
 	assert (location->frames.raw != nullptr);
 
 	// Process the frames for this location
 	char * prev_frame = location_txt;
-	frame = strchr (location_txt, '!');
+	char * frame = strchr (location_txt, '!');
 	unsigned f = 0;
 	while (f < location->nframes && frame != nullptr)
 	{
-		char module[PATH_MAX];
-		memset (module, 0, sizeof(char)*PATH_MAX);
-		memcpy (module, prev_frame, frame-prev_frame);
+		char module[PATH_MAX] = {0};
+		size_t module_len = std::min(frame-prev_frame, (std::ptrdiff_t) PATH_MAX-1);
+		memcpy (module, prev_frame, module_len);
+		module[module_len] = '\0';
 
 		char *endptr;
 		long address = strtoul (frame+1, &endptr, 16);
@@ -322,15 +302,15 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 
 		long base_address = base_address_for_library (module);
 
-		DBG("Address %lx in library %s gets relocated to %lx.\n", 
+		DBG("Address %lx in library %s gets relocated to %lx.\n",
 		  address, module, address+base_address);
 
 		location->frames.raw[f].frame = address+base_address;
 
-		prev_frame = strchr (frame, '>') + 2;
+		prev_frame = strchr (endptr, '>') + 2;
 		if (prev_frame == nullptr)
 			break;
-		frame = strchr (frame+1, '!');
+		frame = strchr (endptr, '!');
 		if (frame == nullptr)
 			break;
 		f++;
@@ -359,7 +339,7 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 		VERBOSE_MSG(0, "Warning! fstat failed on file %s\n", f);
 		perror("fstat");
 		close (fd);
-		return false; 
+		return false;
 	}
 	if (!S_ISREG(sb.st_mode))
 	{
