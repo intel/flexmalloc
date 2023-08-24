@@ -446,8 +446,8 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 					_locations[_nlocations].nframes = options.maxDepth();
 				}
 
-				_min_nframes = MIN(_min_nframes, _locations[_nlocations].nframes);
-				_max_nframes = MAX(_max_nframes, _locations[_nlocations].nframes);
+				_min_nframes = std::min(_min_nframes, _locations[_nlocations].nframes);
+				_max_nframes = std::max(_max_nframes, _locations[_nlocations].nframes);
 				memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
 				_locations[_nlocations].id = _nlocations+1;
 				_nlocations++;
@@ -457,8 +457,8 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 			if (!options.sourceFrames() &&
 				 process_raw_location (p_current, &_locations[_nlocations], fallback_allocator_name))
 			{
-				_min_nframes = MIN(_min_nframes, _locations[_nlocations].nframes);
-				_max_nframes = MAX(_max_nframes, _locations[_nlocations].nframes);
+				_min_nframes = std::min(_min_nframes, _locations[_nlocations].nframes);
+				_max_nframes = std::max(_max_nframes, _locations[_nlocations].nframes);
 				memset (&_locations[_nlocations].stats, 0, sizeof(location_stats_t));
 				_locations[_nlocations].id = _nlocations+1;
 				_nlocations++;
