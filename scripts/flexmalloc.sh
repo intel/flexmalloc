@@ -26,9 +26,9 @@ fi
 export FLEXMALLOC_DEFINITIONS=${1}
 export FLEXMALLOC_LOCATIONS=${2}
 
-mpi_rank="$PMIX_RANK"
-if [[ -z "$mpi_rank" ]]; then
-	mpi_rank="$PMI_RANK"
+mpi_rank="${PMIX_RANK}"
+if [[ -z "${mpi_rank}" ]]; then
+	mpi_rank="${PMI_RANK}"
 fi
 
 # # If MPI rank is 0 or non MPI-execution, set minimum verbosity
