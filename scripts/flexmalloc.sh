@@ -26,8 +26,13 @@ fi
 export FLEXMALLOC_DEFINITIONS=${1}
 export FLEXMALLOC_LOCATIONS=${2}
 
+mpi_rank="${PMIX_RANK}"
+if [[ -z "${mpi_rank}" ]]; then
+	mpi_rank="${PMI_RANK}"
+fi
+
 # # If MPI rank is 0 or non MPI-execution, set minimum verbosity
-if [[ "${PMI_RANK}" == "0" || "${PMI_RANK}" == "" ]] ; then
+if [[ "${mpi_rank}" == "0" || "${mpi_rank}" == "" ]] ; then
 	# Set verbose level 1 if no verbosity requested in rank 0
 	if [[ "${FLEXMALLOC_VERBOSE}" == "" ]] ; then
 		export FLEXMALLOC_VERBOSE=1
