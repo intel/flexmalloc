@@ -1,7 +1,10 @@
 // Author: Harald Servat <harald.servat@intel.com>
 // Date: Feb 10, 2017
+// Author: Clement Foyer <clement.foyer@univ-reims.fr>
+// Date: Aug 24, 2023
 // License: To determine
 
+#include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,6 +12,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <new>
+#include <algorithm>
 
 #include "common.hxx"
 
@@ -43,8 +47,6 @@ Allocators::Allocators (allocation_functions_t &af, const char *definitions)
 		u++;
 	}
 
-	char allocatorname[256];
-	char configureline[256];
 	struct stat sb;
 	int fd;
 
@@ -87,54 +89,38 @@ Allocators::Allocators (allocation_functions_t &af, const char *definitions)
 	close(fd);
 
 	// Process memory definitions
-	char *defs = index ((char*)p, '#');
+	char *defs = strchr ((char*)p, '#');
 	while (defs != nullptr)
 	{
+		char allocatorname[256] = {0};
+		const char blankchars[] = "\n\r\t\f\v";	// only allow single space as blank in the allocator's name
 		const char * MEMORYCONFIG_ALLOCATOR = "# Memory configuration for allocator ";
 		bool has_memoryconfig_allocator = false;
+		size_t count = 0;
 
 		// Have we found an entry for a memory allocator configuration?
-		if (strncmp (defs, MEMORYCONFIG_ALLOCATOR, strlen(MEMORYCONFIG_ALLOCATOR)) == 0)
+		if (strncmp (defs, MEMORYCONFIG_ALLOCATOR, strlen (MEMORYCONFIG_ALLOCATOR)) == 0)
 		{
 			const char *in = &defs[strlen(MEMORYCONFIG_ALLOCATOR)];
-			memset (allocatorname, 0, sizeof(allocatorname));
-			size_t count = 0;
-			while (in[count] != ((char)0) && in[count] != '\n' && count+1 < sizeof(allocatorname))
-			{
-				allocatorname[count] = in[count];
-				count++;
-			}
+			count = std::min (strcspn (in, blankchars), sizeof (allocatorname)-1);
+			memcpy (allocatorname, in, count);
+			allocatorname[count] = '\0';
+
 			// If we have read something, then we have a new allocator
-			has_memoryconfig_allocator = (count > 0 && count < sizeof(allocatorname));
+			has_memoryconfig_allocator = (count > 0 && count < sizeof (allocatorname));
 		}
 
 		if (has_memoryconfig_allocator)
 		{
+			char configureline[256] = {0};
 			Allocator * allocator = get (allocatorname);
 			if (allocator != nullptr)
 			{
-				defs = index (defs+1, '\n');
-				defs++;
 				// Set in configureline the next line, except the trailing LF
-				size_t i = 0;
-				// Fully clean the input buffer
-				memset (configureline, 0, sizeof(configureline));
-				while (defs[i] != (char)0)
-				{
-					// Have we found the end of the line?
-					if (defs[i] == '\n')
-					{
-						break;
-					}
-					// Have we reached the limit of the dest buffer ?
-					else if (i >= sizeof(configureline))
-					{
-						configureline[sizeof(configureline)-1] = (char)0;
-						break;
-					}
-					configureline[i] = defs[i];
-					i++;
-				}
+				defs += strlen (MEMORYCONFIG_ALLOCATOR) + count + 1;
+				count = std::min (strcspn (defs, blankchars), sizeof (configureline)-1);
+				memcpy (configureline, defs, count);
+				configureline[count] = '\0';
 				VERBOSE_MSG(1, "Configuring allocator %s with \"%s\"\n", allocatorname, configureline);
 				allocator->configure (configureline);
 			}
@@ -144,7 +130,7 @@ Allocators::Allocators (allocation_functions_t &af, const char *definitions)
 				exit (0);
 			}
 		}
-		defs = index (defs+1, '#'); // Search for next # Memory configuration
+		defs = strchr (defs+count+1, '#'); // Search for next # Memory configuration
 	}
 	munmap(p, sb.st_size);
 }
