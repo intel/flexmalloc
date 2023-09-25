@@ -354,13 +354,27 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 	{
 		unsigned library_address_cnt = 0;
 		unsigned source_line_cnt     = 0;
+		bool is_comment              = false;
 
 		for (char *p_current = p; p_current < &p[sb.st_size]; ++p_current)
 		{
-			if (*p_current == '!')
-				library_address_cnt++;
-			else if (*p_current == ':')
-				source_line_cnt++;
+			switch (*p_current)
+			{
+				case '#':
+					is_comment = true;
+					break;
+				case '\n':
+					is_comment = false;
+					break;
+				case '!':
+					if (LIKELY(!is_comment))
+						library_address_cnt++;
+					break;
+				case ':':
+					if (LIKELY(!is_comment))
+						source_line_cnt++;
+					break;
+			}
 		}
 		if (library_address_cnt > 0 && source_line_cnt == 0)
 		{
