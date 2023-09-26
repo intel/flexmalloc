@@ -5,5 +5,5 @@
 #pragma once
 
 bool parse_proc_self_maps_entry (const char *entry,
-	size_t *start, size_t *end, unsigned lenpermissions, char *permissions,
-	size_t *offset, unsigned lenmodule, char *module);
+	size_t *start, size_t *end, size_t lenpermissions, char *permissions,
+	size_t *offset, size_t lenmodule, char *module);
