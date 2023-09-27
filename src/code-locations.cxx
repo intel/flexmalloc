@@ -232,10 +232,10 @@ bool CodeLocations::load_memory_mappings_info (memory_maps_t& maps)
 	return true;
 }
 
-long CodeLocations::file_offset_to_address (const char *lib, unsigned long offset, bool& found)
+size_t CodeLocations::file_offset_to_address (const char *lib, size_t offset, bool& found)
 {
-	long baseAddress = 0;
-	unsigned long baseOffset = 0;
+	size_t baseAddress = 0;
+	size_t baseOffset = 0;
 	found = false;
 
 	for (unsigned i = 0; i < _maps_info.num_entries; i++)
@@ -276,7 +276,7 @@ long CodeLocations::file_offset_to_address (const char *lib, unsigned long offse
 		}
 	}
 
-	DBG("Base address for library (%s) -> %lx\n", lib, baseAddress);
+	DBG("Base address for library (%s) -> %zx\n", lib, baseAddress);
 	return baseAddress + (offset - baseOffset);
 }
 
@@ -311,21 +311,21 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 		module[module_len] = '\0';
 
 		char *endptr;
-		long offset = strtoul (frame+1, &endptr, 16);
-		assert (endptr <= frame+1+16);
+		size_t offset = strtoull (frame+1, &endptr, options.readOffsetBase());
+		assert (endptr <= frame+1+options.maxOffsetDigits());
 
 		bool found = false;
 		long address = file_offset_to_address (module, offset, found);
 
 		if (found)
 		{
-			DBG("Offset %lx in file %s gets relocated to address %lx.\n",
+			DBG("Offset %zx in file %s gets relocated to address %zx.\n",
 			  offset, module, address);
 			location->frames.raw[f].frame = address;
 		}
 		else
 		{
-			DBG("Could not translate frame: '%s'!%08lx\n", module, offset);
+			DBG("Could not translate frame: '%s'!%08zx\n", module, offset);
 			location->frames.raw[f].frame = 0;
 
 			pending_module_t* mm = add_or_get_pending_module (module);

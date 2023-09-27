@@ -28,45 +28,51 @@ class Options
 	bool _sourceFrames;
 	bool _sourceFramesSet;
 	bool _ignoreIfFallbackAllocator;
-	
+	unsigned _read_offset_base;
+	size_t _max_offset_digits;
+
 	public:
 	Options ();
 	~Options ();
 	int verboseLvl (void) const
-	  { return _VerboseLvl; };
+	  { return _VerboseLvl; }
 	bool compareWholePath (void) const
-	  { return _comparewholepath; };
+	  { return _comparewholepath; }
 	void minSize (unsigned s)
-	  { _minSize = s; };
+	  { _minSize = s; }
 	size_t minSize (void) const
-	  { return _minSize; };
+	  { return _minSize; }
 	bool debug (void) const
-	  { return _debug; };
-	bool messages_on_stderr(void) const
-	  { return _messages_on_stderr; };
-	unsigned maxDepth (void) const
-	  { return _max_depth; };
-	void callstackMinus1(bool b)
+	  { return _debug; }
+	bool messages_on_stderr (void) const
+	  { return _messages_on_stderr; }
+	size_t maxDepth (void) const
+	  { return _max_depth; }
+	void callstackMinus1 (bool b)
 	  { _callstack_minus_1 = b; }
-	bool callstackMinus1(void) const
-	  { return _callstack_minus_1; };
+	bool callstackMinus1 (void) const
+	  { return _callstack_minus_1; }
 	void stopAtMain (bool b)
-	  { _stopAtMain = b; };
+	  { _stopAtMain = b; }
 	bool stopAtMain (void) const
-	  { return _stopAtMain; };
+	  { return _stopAtMain; }
 	void shortenFrames (bool b)
-	  { _shorten_frames = b; };
+	  { _shorten_frames = b; }
 	bool shortenFrames (void) const
-	  { return _shorten_frames; };
-	uint64_t getTime(void) const;
+	  { return _shorten_frames; }
+	uint64_t getTime (void) const;
 	bool sourceFrames (void) const
-	  { return _sourceFrames; };
+	  { return _sourceFrames; }
 	void sourceFrames (bool b)
-	  { _sourceFrames = b; };
+	  { _sourceFrames = b; }
 	bool sourceFrame_set (void) const
-	  { return _sourceFramesSet; };
+	  { return _sourceFramesSet; }
 	bool ignoreIfFallbackAllocator (void) const
-	  { return _ignoreIfFallbackAllocator; };
+	  { return _ignoreIfFallbackAllocator; }
+	unsigned readOffsetBase (void) const
+	  { return _read_offset_base; }
+	size_t maxOffsetDigits (void) const
+	  { return _max_offset_digits; }
 };
 
 typedef struct allocation_functions_st
@@ -97,6 +103,7 @@ extern Options options;
 #define TOOL_MATCH_ONLY_ON_MAIN_BINARY    TOOL_NAME"_MATCH_ONLY_ON_MAIN_BINARY"
 #define TOOL_SOURCE_FRAMES                TOOL_NAME"_SOURCE_FRAMES"
 #define TOOL_IGNORE_IF_FALLBACK_ALLOCATOR TOOL_NAME"_IGNORE_LOCATIONS_ON_FALLBACK_ALLOCATOR"
+#define TOOL_READ_OFFSET_BASE             TOOL_NAME"_READ_OFFSET_BASE"
 
 #define VERBOSE_MSG(level,...) \
 	do { if (options.verboseLvl() >= level || options.debug()) { fprintf (options.messages_on_stderr() ? stderr : stdout, TOOL_NAME"|" __VA_ARGS__); } } while(0)
