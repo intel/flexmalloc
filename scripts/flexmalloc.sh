@@ -34,6 +34,11 @@ if [[ -z "${mpi_rank}" ]]; then
 	mpi_rank="${PMI_RANK}"
 fi
 
+if test -z "${TMPDIR}"
+then
+	TMPDIR=/tmp
+fi
+
 # # If MPI rank is 0 or non MPI-execution, set minimum verbosity
 if [[ "${mpi_rank}" == "0" || "${mpi_rank}" == "" ]] ; then
 	# Set verbose level 1 if no verbosity requested in rank 0
@@ -43,7 +48,7 @@ if [[ "${mpi_rank}" == "0" || "${mpi_rank}" == "" ]] ; then
 	# Ease the starting of a program using flexmalloc through GDB debugger
 	if test -n "${FLEXMALLOC_GDB}"
 	then
-		tmp_gdb=`mktemp /tmp/flexmalloc_gdb_cmd_file.XXXXXX`
+		tmp_gdb=`mktemp "${TMPDIR}"/flexmalloc_gdb_cmd_file.XXXXXX`
 		cat >$tmp_gdb <<EOF
 set environment FLEXMALLOC_DEFINITIONS ${1}
 set environment FLEXMALLOC_LOCATIONS ${2}
