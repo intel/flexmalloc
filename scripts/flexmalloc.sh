@@ -53,7 +53,6 @@ if [[ "${mpi_rank}" == "0" || "${mpi_rank}" == "" ]] ; then
 set environment FLEXMALLOC_DEFINITIONS ${1}
 set environment FLEXMALLOC_LOCATIONS ${2}
 set exec-wrapper env '${set_LD_PRELOAD}'
-break main
 EOF
 		case "${FLEXMALLOC_GDB}" in
 			1|enabled|yes)
