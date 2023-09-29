@@ -99,20 +99,20 @@ extern Options options;
 #define TOOL_IGNORE_IF_FALLBACK_ALLOCATOR TOOL_NAME"_IGNORE_LOCATIONS_ON_FALLBACK_ALLOCATOR"
 
 #define VERBOSE_MSG(level,...) \
-	{ if (options.verboseLvl() >= level || options.debug()) { fprintf (options.messages_on_stderr() ? stderr : stdout, TOOL_NAME"|" __VA_ARGS__); } }
+	do { if (options.verboseLvl() >= level || options.debug()) { fprintf (options.messages_on_stderr() ? stderr : stdout, TOOL_NAME"|" __VA_ARGS__); } } while(0)
 #define VERBOSE_MSG_NOPREFIX(level,...) \
-	{ if (options.verboseLvl() >= level || options.debug()) { fprintf (options.messages_on_stderr() ? stderr : stdout, __VA_ARGS__); } }
+	do { if (options.verboseLvl() >= level || options.debug()) { fprintf (options.messages_on_stderr() ? stderr : stdout, __VA_ARGS__); } } while(0)
 
 #if defined(DEBUG)
 # define DBG(fmt,...) \
-	{ \
+	do { \
 		if (options.debug()) \
 		{ \
 			fprintf (options.messages_on_stderr() ? stderr : stdout, \
 			         TOOL_NAME"|DBG|%s (%s:%d)|%luus: " fmt, __func__, __FILE__, __LINE__, options.getTime()/1000, __VA_ARGS__); \
 			fflush (options.messages_on_stderr() ? stderr : stdout); \
 		} \
-	}
+	} while(0)
 #else
 # define DBG(fmt,...)
 #endif

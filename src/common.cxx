@@ -32,7 +32,7 @@ Options options;
 #define IGNORE_IF_FALLBACK_ALLOCATOR_DEFAULT true
 
 #define PROCESS_ENVVAR(envvar,var,defvalue) \
-    { \
+    do { \
     char *s = getenv (envvar); \
     if (s != nullptr) \
     { \
@@ -45,7 +45,7 @@ Options options;
     } \
     else \
         var = defvalue;\
-    }
+    } while (0)
 
 Options::Options ()
 	: _minSize(0), _max_depth(100)
