@@ -199,7 +199,6 @@ long CodeLocations::file_offset_to_address (const char *lib, unsigned long offse
 
 	#define LINE_SIZE 2048
 	char line[LINE_SIZE+1];
-	unsigned line_no = 0;
 
 	while (!feof (mapsfile))
 		if (fgets (line, LINE_SIZE, mapsfile) != nullptr)
@@ -210,43 +209,35 @@ long CodeLocations::file_offset_to_address (const char *lib, unsigned long offse
 
 			bool entry_parsed = parse_proc_self_maps_entry (line, &start, &end,
 			  sizeof(permissions), permissions, &baseOffset, LINE_SIZE, module);
-			if (module[LINE_SIZE] != (char)0)
-				break;
 
-			if (entry_parsed && strlen(module) > 0)
+			if (entry_parsed)
 			{
 				// Check for execution bits, ignore the rest
-				if (strcmp (permissions, "r-xp") == 0 ||
-					strcmp (permissions, "rwxp") == 0)
+				if (permissions[2] == 'x')
 				{
 					char module_buf[PATH_MAX] = {0};
 					const char * p_module = module_buf;
 					if (realpath(module, module_buf) == nullptr) {
-						VERBOSE_MSG (1, "Warning! Could not get realpath of %s\n", module);
+						VERBOSE_MSG (1, "Warning! Could not get realpath of %s (from /proc/self/maps)\n", module);
 						p_module = module;
 					}
 					char lib_buf[PATH_MAX] = {0};
 					const char * p_lib = lib_buf;
 					if (realpath(lib, lib_buf) == nullptr) {
-						VERBOSE_MSG (1, "Warning! Could not get realpath of %s\n", lib);
+						VERBOSE_MSG (1, "Warning! Could not get realpath of %s (from location)\n", lib);
 						p_lib = lib;
 					}
 
 					// Check if library matches
 					if (strcmp (p_module, p_lib) == 0)
 					{
-						// Base address for main binary is 0
-						if (line_no == 0) {
-							baseAddress = 0;
-							break; // Stop iterating
-						} else if (baseOffset <= offset && offset < (baseOffset + (end - start))) {
+						if (baseOffset <= offset && offset < (baseOffset + (end - start))) {
 							baseAddress = start;
 							break; // Stop iterating
 						}
 					}
 				}
 			}
-			line_no++;
 		}
 
 	fclose (mapsfile);
@@ -354,13 +345,27 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 	{
 		unsigned library_address_cnt = 0;
 		unsigned source_line_cnt     = 0;
+		bool is_comment              = false;
 
 		for (char *p_current = p; p_current < &p[sb.st_size]; ++p_current)
 		{
-			if (*p_current == '!')
-				library_address_cnt++;
-			else if (*p_current == ':')
-				source_line_cnt++;
+			switch (*p_current)
+			{
+				case '#':
+					is_comment = true;
+					break;
+				case '\n':
+					is_comment = false;
+					break;
+				case '!':
+					if (LIKELY(!is_comment))
+						library_address_cnt++;
+					break;
+				case ':':
+					if (LIKELY(!is_comment))
+						source_line_cnt++;
+					break;
+			}
 		}
 		if (library_address_cnt > 0 && source_line_cnt == 0)
 		{

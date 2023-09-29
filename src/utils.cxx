@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <algorithm>
 #include "utils.hxx"
 
 // Process /proc/self/maps entries like
@@ -11,10 +12,11 @@
 //   ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
 
 bool parse_proc_self_maps_entry (const char *entry,
-	size_t *start, size_t *end, unsigned lenpermissions, char *permissions,
-	size_t *offset, unsigned lenmodule, char *module)
+	size_t *start, size_t *end, size_t lenpermissions, char *permissions,
+	size_t *offset, size_t lenmodule, char *module)
 {
-	constexpr unsigned LENPERMISSIONS = 5;
+	const char blankchars[] = "\n\r\t\f\v";
+	constexpr size_t LENPERMISSIONS = 5;
 	bool res = false;
 	char *beginptr = nullptr, *endptr = nullptr;
 	char _module[lenmodule];
@@ -36,7 +38,7 @@ bool parse_proc_self_maps_entry (const char *entry,
 			_end = strtoull (beginptr, &endptr, 16);
 			if (endptr != beginptr)
 			{
-				// Now get the permissions (e.g. rw-p) 
+				// Now get the permissions (e.g. rw-p)
 				// if there are at least 4 chars to be processed
 				if ((*endptr == ' ') && (strlen(endptr) >= 5))
 				{
@@ -44,7 +46,7 @@ bool parse_proc_self_maps_entry (const char *entry,
 					_perms[1] = endptr[2];
 					_perms[2] = endptr[3];
 					_perms[3] = endptr[4];
-					_perms[4] = (char)0;
+					_perms[4] = '\0';
 					endptr += 4;
 
 					// Get offset after a white space (e.g. 001c7000)
@@ -58,45 +60,30 @@ bool parse_proc_self_maps_entry (const char *entry,
 						// Need to skip 2 fields, plus an indefinite number of spaces
 						if (endptr != beginptr && endptr != nullptr)
 						{
-							int nspaces = 0;
-							endptr++; // Skip initial (after offset) whitespace
-							while (endptr != nullptr && *endptr != (char)0)
+							lenmodule -= endptr-entry; // Update remaining length of the string to parse
+							enum skipped_fields_e { MAJOR_MINOR, INODE, FILEPATH };
+							size_t skip_count = 0;
+							for (int sf = MAJOR_MINOR; sf < FILEPATH; sf++)
 							{
-								if (*endptr == ' ')
-									nspaces++;
-								if (nspaces == 2)
-									break;
-								endptr++;
+								// Skip over some blankspace + everything that is not a blankspace (in regex: "\s+\S+")
+								skip_count += std::min (strspn (endptr+skip_count, " "), lenmodule);
+								lenmodule -= skip_count;
+								skip_count += std::min (strcspn (endptr+skip_count, " "), lenmodule);
+								lenmodule -= skip_count;
 							}
-							// Now consume an indefinite number of spaces
-							if (nspaces == 2 && endptr != nullptr)
+							// Skip over indefinite number of spaces
+							skip_count += std::min (strspn (endptr+skip_count, " "), lenmodule);
+							lenmodule -= skip_count;
+							endptr += skip_count;
+							// We found the module name
+							if (*endptr != '\0')
 							{
-								while (*endptr != (char)0)
-								{
-									if (*endptr != ' ')
-										break;
-									endptr++;
-								}
-								// We found the module name
-								if (*endptr != ' ')
-								{
-									memset (_module, 0, lenmodule);
-									strncpy (_module, endptr, lenmodule-1);
-									// Remove trailing spaces and CRLF
-									while (strlen(_module) > 0)
-									{
-										if (_module[strlen(_module)-1] == ' ' ||
-										    _module[strlen(_module)-1] == '\n')
-										{
-											_module[strlen(_module)-1] = (char)0;
-										}
-										else
-											break;
-									}
-									// If module is non-empty, then we have all
-									// the data needed and we can return
-									res = strlen(_module) > 0;
-								}
+								size_t count = std::min (strcspn (endptr, blankchars), lenmodule);
+								strncpy (_module, endptr, count);
+								_module[count] = '\0';
+								// If module is non-empty, then we have all
+								// the data needed and we can return
+								res = strlen(_module) > 0;
 							}
 						}
 					}
