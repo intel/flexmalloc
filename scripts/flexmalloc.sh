@@ -26,9 +26,17 @@ fi
 export FLEXMALLOC_DEFINITIONS=${1}
 export FLEXMALLOC_LOCATIONS=${2}
 
+set_LD_PRELOAD="LD_PRELOAD=${FLEXMALLOC_HOME}/lib/${library}.so"
+runner="env ${set_LD_PRELOAD}"
+
 mpi_rank="${PMIX_RANK}"
 if [[ -z "${mpi_rank}" ]]; then
 	mpi_rank="${PMI_RANK}"
+fi
+
+if test -z "${TMPDIR}"
+then
+	TMPDIR=/tmp
 fi
 
 # # If MPI rank is 0 or non MPI-execution, set minimum verbosity
@@ -37,10 +45,26 @@ if [[ "${mpi_rank}" == "0" || "${mpi_rank}" == "" ]] ; then
 	if [[ "${FLEXMALLOC_VERBOSE}" == "" ]] ; then
 		export FLEXMALLOC_VERBOSE=1
 	fi
-	LD_PRELOAD=${FLEXMALLOC_HOME}/lib/${library}.so ${@:3}
-else 
+	# Ease the starting of a program using flexmalloc through GDB debugger
+	if test -n "${FLEXMALLOC_GDB}"
+	then
+		tmp_gdb=`mktemp "${TMPDIR}"/flexmalloc_gdb_cmd_file.XXXXXX`
+		cat >$tmp_gdb <<EOF
+set environment FLEXMALLOC_DEFINITIONS ${1}
+set environment FLEXMALLOC_LOCATIONS ${2}
+set exec-wrapper env '${set_LD_PRELOAD}'
+EOF
+		case "${FLEXMALLOC_GDB}" in
+			1|enabled|yes)
+				runner="gdb -x ${tmp_gdb} --args"
+				;;
+		esac
+	fi
+	# Start the application
+	${runner} ${@:3}
+else
 	export FLEXMALLOC_DEBUG=no
 	export FLEXMALLOC_VERBOSE=0
-	LD_PRELOAD=${FLEXMALLOC_HOME}/lib/${library}.so ${@:3} > /dev/null 2> /dev/null
+	${runner} ${@:3} > /dev/null 2> /dev/null
 fi
 
