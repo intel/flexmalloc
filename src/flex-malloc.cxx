@@ -223,56 +223,51 @@ void FlexMalloc::parse_map_files (void)
 			memset (module, 0, (LINE_SIZE+1)*sizeof(char));
 			bool entry_parsed = parse_proc_self_maps_entry (line, &start, &end,
 			  sizeof(permissions), permissions, &offset, LINE_SIZE, module);
-			if (module[LINE_SIZE] != (char)0)
-				break;
 
-			bool excluded = true;
-			if (entry_parsed && strlen(module) > 0)
-				excluded = excluded_library (module);
-
-			if (entry_parsed && !excluded)
+			if (entry_parsed)
 			{
 				// Check for execution bits, ignore the rest
-				if (strcmp (permissions, "r-xp") == 0 ||
-				    strcmp (permissions, "rwxp") == 0)
-					// avoid [vdso], [syscall] and others
-					if (strlen (module) > 0 && module[0] != '[') 
+				if (permissions[2] == 'x')
+				{
+					if (!excluded_library (module))
 					{
-						DBG("Processing line %u, %s [0x%08lx-0x%08lx] and tentatively inserting into index %u\n",
-						  line_no, module, start, end, _nmodules);
-
-						_modules = (module_t*) _af.realloc (_modules, (_nmodules+1)*sizeof(module_t));
-						assert (_modules != nullptr);
-
-						_modules[_nmodules].name = strdup (module);
-						assert (_modules[_nmodules].name != nullptr);
-						_modules[_nmodules].startAddress = start;
-						_modules[_nmodules].endAddress = end;
-						_modules[_nmodules].bfd = new BFDManager;
-						_modules[_nmodules].symbolsLoaded =
-						  _modules[_nmodules].bfd->load_binary (_modules[_nmodules].name);
-
-						// If BFD failed to load the binary/symbols then ignore this
-						// recently created entry
-						if (_modules[_nmodules].symbolsLoaded)
+						// avoid [vdso], [syscall] and others
+						if (module[0] != '[')
 						{
-							VERBOSE_MSG(1, "Successfully loaded symbols from %s into index %u\n",
-							  _modules[_nmodules].name, _nmodules);
-							_nmodules++;
-						}
-						else
-						{
-							VERBOSE_MSG(2, "Could not load symbols from %s\n",
-							  _modules[_nmodules].name);
+							DBG("Processing line %u, %s [0x%08lx-0x%08lx] and tentatively inserting into index %u\n",
+							  line_no, module, start, end, _nmodules);
+
+							_modules = (module_t*) _af.realloc (_modules, (_nmodules+1)*sizeof(module_t));
+							assert (_modules != nullptr);
+
+							_modules[_nmodules].name = strdup (module);
+							assert (_modules[_nmodules].name != nullptr);
+							_modules[_nmodules].startAddress = start;
+							_modules[_nmodules].endAddress = end;
+							_modules[_nmodules].bfd = new BFDManager;
+							_modules[_nmodules].symbolsLoaded =
+							  _modules[_nmodules].bfd->load_binary (_modules[_nmodules].name);
+
+							// If BFD failed to load the binary/symbols then ignore this
+							// recently created entry
+							if (_modules[_nmodules].symbolsLoaded)
+							{
+								VERBOSE_MSG(1, "Successfully loaded symbols from %s into index %u\n",
+								  _modules[_nmodules].name, _nmodules);
+								_nmodules++;
+							}
+							else
+							{
+								VERBOSE_MSG(2, "Could not load symbols from %s\n",
+								  _modules[_nmodules].name);
+							}
 						}
 					}
-			}
-			else if (entry_parsed && excluded)
-			{
-				// Check for execution bits, ignore the rest
-				if (strcmp (permissions, "r-xp") == 0 ||
-				    strcmp (permissions, "rwxp") == 0)
-					VERBOSE_MSG(2, "Excluding the analysis of %s\n", module);
+					else
+					{
+						VERBOSE_MSG(2, "Excluding the analysis of %s\n", module);
+					}
+				}
 			}
 		}
 
