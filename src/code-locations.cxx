@@ -574,7 +574,7 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 			break;
 
 		// If there are locations, make sure that we start in the line that contains the @
-		for (char *nextEOL = strchr (prevEOL + 1, '\n');
+		for (char *nextEOL = strchr (prevEOL, '\n');
 				nextEOL != nullptr && nextEOL < nextAT;
 				nextEOL = strchr (prevEOL, '\n'))
 		{
