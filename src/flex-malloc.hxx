@@ -22,6 +22,7 @@ class FlexMalloc
 		char *name;
 		long startAddress;
 		long endAddress;
+		long offset;
 		bool symbolsLoaded;
 		bool do_not_backtrace;
 	} module_t;
