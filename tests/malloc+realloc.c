@@ -28,17 +28,17 @@ int main (int argc, char *argv[])
 			{
 				fprintf (stderr, "Error! TAG1 not found in p[0] after realloc (, %lu)! -- value found %p\n", s, p[0]);
 				free (ptr);
-				return 0;
+				return EXIT_FAILURE;
 			}
 			if (p[1] != TAG2)
 			{
 				fprintf (stderr, "Error! TAG2 not found in p[1] after realloc (, %lu)! -- value found %p\n", s, p[1]);
 				free (ptr);
-				return 0;
+				return EXIT_FAILURE;
 			}
 		}
 	}
 	printf ("c = %p\n", (void*) c);
 	free (ptr);
-	return 0;
+	return EXIT_SUCCESS;
 }

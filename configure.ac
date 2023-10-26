@@ -11,6 +11,7 @@ AM_SILENT_RULES([yes])
 
 AX_CONFIG_SCRIPT([scripts/flexmalloc.sh])
 AX_CONFIG_SCRIPT([scripts/count.sh])
+AX_CONFIG_SCRIPT([tests/test-wrapper.sh])
 
 AC_CONFIG_HEADERS([flexmalloc-config.h])
 

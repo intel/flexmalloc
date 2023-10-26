@@ -1,6 +1,14 @@
 EXTRA_DIST = malloc+free-libtester-locations \
 	malloc+free-locations \
+	multiple-tests-locations \
+	realloc-locations \
+	posix_memalign+realloc-locations \
+	malloc+realloc-locations \
 	base-memory-configuration
+
+LOG_COMPILER = bash $(builddir)/test-wrapper.sh
+
+CLEANFILES = test-wrapper.sh.in
 
 AM_CPPFLAGS = -DDEBUG
 AM_CFLAGS = -g -O0
