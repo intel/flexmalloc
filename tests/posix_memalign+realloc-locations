@@ -1,2 +1,2 @@
-posix_memalign+realloc.c:16 @ posix
+posix_memalign+realloc.c:16 @ debug
 

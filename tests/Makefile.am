@@ -1,12 +1,6 @@
-EXTRA_DIST = malloc+free-libtester-locations \
-	malloc+free-locations \
-	multiple-tests-locations \
-	realloc-locations \
-	posix_memalign+realloc-locations \
-	malloc+realloc-locations \
-	base-memory-configuration
+LOG_COMPILER = $(builddir)/test-wrapper.sh
 
-LOG_COMPILER = bash $(builddir)/test-wrapper.sh
+check_SCRIPTS = test-wrapper.sh
 
 CLEANFILES = test-wrapper.sh.in
 
@@ -29,7 +23,9 @@ libtester_la_SOURCES = libtester.c libtester.h
 malloc_free_libtester_LDADD = libtester.la
 
 testlocationsdir = $(datadir)
-dist_testlocations_DATA = malloc+free-libtester-locations  malloc+free-locations
+dist_testlocations_DATA = malloc+free-libtester-locations malloc+free-locations \
+	multiple-tests-locations realloc-locations posix_memalign+realloc-locations \
+	malloc+realloc-locations
 
 basememoryconfigurationdir = $(datadir)
 dist_basememoryconfiguration_DATA = base-memory-configuration
