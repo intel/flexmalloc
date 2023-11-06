@@ -50,8 +50,8 @@ if [[ "${mpi_rank}" == "0" || "${mpi_rank}" == "" ]] ; then
 	then
 		tmp_gdb=`mktemp "${TMPDIR}"/flexmalloc_gdb_cmd_file.XXXXXX`
 		cat >$tmp_gdb <<EOF
-set environment FLEXMALLOC_DEFINITIONS ${1}
-set environment FLEXMALLOC_LOCATIONS ${2}
+set environment FLEXMALLOC_DEFINITIONS ${FLEXMALLOC_DEFINITIONS}
+set environment FLEXMALLOC_LOCATIONS ${FLEXMALLOC_LOCATIONS}
 set exec-wrapper env '${set_LD_PRELOAD}'
 EOF
 		case "${FLEXMALLOC_GDB}" in
