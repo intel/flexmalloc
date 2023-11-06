@@ -816,7 +816,7 @@ void malloc_interposer_start (void)
 	    real_allocation_functions.malloc_usable_size == nullptr)
 	{
 		VERBOSE_MSG(0, "Could not find malloc/calloc/free/realloc/posix_memalign/malloc_usable_size symbols in DSOs.");
-		_exit (0);
+		_exit (-1);
 	}
 
 	// Get memory definitions from environment
@@ -829,7 +829,7 @@ void malloc_interposer_start (void)
 	else
 	{
 		VERBOSE_MSG(0, "Did not find " TOOL_DEFINITIONS_FILE " environment variable. Finishing...\n");
-		_exit (0);
+		_exit (2);
 	}
 
 	// Get fallback allocator, if given from environment.
@@ -840,7 +840,7 @@ void malloc_interposer_start (void)
 		if (!fallback)
 		{
 			VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator. Exiting!\n", env);
-			_exit (0);
+			_exit (2);
 		}
 	}
 	else
@@ -849,13 +849,13 @@ void malloc_interposer_start (void)
 		if (!fallback)
 		{
 			VERBOSE_MSG(0, "Did not find allocator \"posix\" to be used as fallback allocator. Exiting!\n");
-			_exit (0);
+			_exit (2);
 		}
 	}
 
 	if (! fallback->is_ready()) {
 		VERBOSE_MSG(0, "The fallback allocator '%s' is not ready. Check if its parameters in the configuration file are correct. Exiting!\n", fallback->name());
-		_exit (0);
+		_exit (2);
 	}
 
 	VERBOSE_MSG(0, "Fallback allocator set to '%s'\n", fallback->name());
@@ -896,12 +896,12 @@ void malloc_interposer_start (void)
 			if (!fallback_smallAllocation)
 			{
 				VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator for small allocations. Exiting!\n", env);
-				_exit (0);
+				_exit (2);
 			}
 
 			if (! fallback_smallAllocation->is_ready()) {
 				VERBOSE_MSG(0, "The fallback allocator for small allocations '%s' is not ready. Check if its parameters in the configuration file are correct.\n", fallback_smallAllocation->name());
-				_exit (0);
+				_exit (2);
 			}
 		}
 		else
@@ -924,7 +924,7 @@ void malloc_interposer_start (void)
 	else
 	{
 		VERBOSE_MSG(0, "Did not find " TOOL_LOCATIONS_FILE " environment variable. Finishing...\n");
-		_exit (0);
+		_exit (2);
 	}
 
 	// Allocate main flexmalloc object
