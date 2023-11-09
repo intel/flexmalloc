@@ -272,6 +272,12 @@ long CodeLocations::file_offset_to_address (const char *lib, unsigned long offse
 					found = true;
 					break; // Stop iterating
 				}
+				DBG("\"%s\" (p_module) same as \"%s\" (p_lib)\n", p_module, p_lib);
+				DBG("baseOffset: %zu, offset: %zu\n", baseOffset, offset);
+			}
+			else
+			{
+				DBG("\"%s\" (p_module) different from \"%s\" (p_lib)\n", p_module, p_lib);
 			}
 		}
 	}
