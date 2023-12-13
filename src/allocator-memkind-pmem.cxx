@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <new>
+#include <algorithm>
 
 #include "flex-malloc.hxx"
 
@@ -229,12 +230,13 @@ void AllocatorMemkindPMEM::configure (const char *config)
 #warning This casting is necessary for gcc 7.3.1/fedora 27
 	for (char *tmp = strchr ((char*)config, '@');
 			tmp != nullptr && nnodes < _num_NUMA_nodes;
-			tmp = strchr (tmp+1, '@'))
+			tmp = strchr (tmp, '@'))
 	{
 		bool has_path = false;
 		char path[PATH_MAX] = {0};
 		{
 			// Copy into path the given path for PMEM -- skip every empty char after @
+			tmp++;
 			constexpr char blankchars[] = " \n\r\t\f\v";
 			size_t count = strspn(tmp, blankchars); // skip blank chars
 			const char* in = &tmp[count];
