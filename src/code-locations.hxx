@@ -40,7 +40,22 @@ class CodeLocations
 		unsigned n_allocations_not_fit;
 		unsigned n_allocations;
 	} location_stats_t;
-	
+
+	typedef struct st_pending_module
+	{
+		char path[PATH_MAX+1];
+		unsigned nframes;
+		struct st_pending_module* next;
+	} pending_module_t;
+
+	typedef struct st_pending_raw_frame
+	{
+		pending_module_t* module;
+		long offset;
+		unsigned index;
+		struct st_pending_raw_frame* next;
+	} pending_raw_frame_t;
+
 	typedef struct
 	{
 		union
@@ -52,7 +67,27 @@ class CodeLocations
 		location_stats_t stats;
 		unsigned nframes;
 		unsigned id;
+		pending_raw_frame_t* pending_frames;
 	} location_t;
+
+	#define LINE_SIZE 2048
+	typedef struct
+	{
+		unsigned long start;
+		unsigned long end;
+		unsigned long offset;
+		char module[LINE_SIZE+1];
+		bool perm_read;
+		bool perm_write;
+		bool perm_exec;
+	} memory_maps_entry_t;
+
+	typedef struct
+	{
+		unsigned num_entries;
+		unsigned capacity;
+		memory_maps_entry_t* entries;
+	} memory_maps_t;
 
 	static bool comparator_by_ID (const location_t &lhs, const location_t &rhs);
 	static bool comparator_by_NumberOfFrames (const location_t &lhs, const location_t &rhs);
@@ -61,11 +96,15 @@ class CodeLocations
 					// pointing to the first element with N frames
 					// when locations are sorted by comparator_by_NumberOfFrames
 	const allocation_functions_t _af;
-	Allocators * const _allocators; 
+	Allocators * const _allocators;
 	location_t * _locations;
 	unsigned _nlocations;
 	unsigned _min_nframes;
 	unsigned _max_nframes;
+
+	memory_maps_t _maps_info;
+
+	pending_module_t* _pending_modules;
 
 	unsigned get_min_index_for_number_of_frames (unsigned nframes) const;
 	unsigned get_max_index_for_number_of_frames (unsigned nframes) const;
@@ -76,8 +115,12 @@ class CodeLocations
 	bool process_raw_location (char *location_txt, location_t * location, const char * fallback_allocator_name);
 	void clean_source_location (location_t * location);
 	void show_frames (void);
-	long file_offset_to_address (const char *lib, unsigned long address);
+	long file_offset_to_address (const char *lib, unsigned long address, bool& found);
 	void create_fast_indexes_for_frames (void);
+	bool load_memory_mappings_info (memory_maps_t& maps);
+	pending_module_t* get_pending_module(const char* path);
+	pending_module_t* add_or_get_pending_module(const char* path);
+	void delete_unused_pending_modules(void);
 
 	public:
 	CodeLocations (allocation_functions_t &, Allocators *);
@@ -99,5 +142,6 @@ class CodeLocations
 	unsigned max_nframes (void) const { return _max_nframes; };
 	unsigned has_locations (void) const { return _nlocations > 0; };
 	Allocator * allocator (unsigned cl) const { return cl <= _nlocations ? _locations[cl].allocator : nullptr; };
+	void translate_pending_frames(const char* module);
 };
 

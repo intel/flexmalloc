@@ -220,20 +220,14 @@ void* dlopen(const char *file, int mode)
 	static void* (*o_dlopen) ( const char *file, int mode )=0;
 	o_dlopen = (void*(*)(const char *file, int mode)) dlsym(RTLD_NEXT,"dlopen");
 	void* res = (*o_dlopen)( file, mode );
-	char *env = getenv(TOOL_LOCATIONS_FILE);
 
-	if (LIKELY(malloc_interposer_started))
+	if (LIKELY(malloc_interposer_started) && !options.sourceFrames())
 	{
 		if (file != NULL)
 		{
-			if (env != nullptr)
-			{
-				VERBOSE_MSG(0, "New library '%s' was loaded. Updating code locations.\n", file);
-				codelocations->readfile(env, fallback->name());
-			}
+			codelocations->translate_pending_frames(file);
 		}
 	}
-
 	return res;
 }
 

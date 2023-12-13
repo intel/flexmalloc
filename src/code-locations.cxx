@@ -24,7 +24,8 @@
 
 CodeLocations::CodeLocations (allocation_functions_t &af, Allocators *a)
 	: _fast_indexes_frames(nullptr), _af(af), _allocators(a), _locations(nullptr),
-	  _nlocations(0), _min_nframes(UINT_MAX), _max_nframes(0)
+	  _nlocations(0), _min_nframes(UINT_MAX), _max_nframes(0), _maps_info{0, 0, nullptr},
+	  _pending_modules(nullptr)
 {
 }
 
@@ -182,10 +183,9 @@ bool CodeLocations::process_source_location (char *location_txt, location_t * lo
 	return true;
 }
 
-long CodeLocations::file_offset_to_address (const char *lib, unsigned long offset)
+bool CodeLocations::load_memory_mappings_info (memory_maps_t& maps)
 {
-	long baseAddress = 0;
-	unsigned long baseOffset = 0;
+	maps.num_entries = 0;
 
 	FILE * mapsfile = fopen ("/proc/self/maps", "r");
 
@@ -197,53 +197,86 @@ long CodeLocations::file_offset_to_address (const char *lib, unsigned long offse
 
 	DBG("Opened /proc/self/maps to learn about application symbols\n%s", "");
 
-	#define LINE_SIZE 2048
 	char line[LINE_SIZE+1];
 
 	while (!feof (mapsfile))
 		if (fgets (line, LINE_SIZE, mapsfile) != nullptr)
 		{
-			unsigned long start, end;
-			char module[LINE_SIZE+1] = {0};
+			memory_maps_entry_t mme;
 			char permissions[5];
 
-			bool entry_parsed = parse_proc_self_maps_entry (line, &start, &end,
-			  sizeof(permissions), permissions, &baseOffset, LINE_SIZE, module);
+			bool entry_parsed = parse_proc_self_maps_entry (line, &mme.start, &mme.end,
+			  sizeof(permissions), permissions, &mme.offset, LINE_SIZE, mme.module);
 
 			if (entry_parsed)
 			{
-				// Check for execution bits, ignore the rest
-				if (permissions[2] == 'x')
+				if (strlen(mme.module) > 0 && mme.module[0] != '[') // ignore [vdso], etc.
 				{
-					char module_buf[PATH_MAX] = {0};
-					const char * p_module = module_buf;
-					if (realpath(module, module_buf) == nullptr) {
-						VERBOSE_MSG (1, "Warning! Could not get realpath of %s (from /proc/self/maps)\n", module);
-						p_module = module;
-					}
-					char lib_buf[PATH_MAX] = {0};
-					const char * p_lib = lib_buf;
-					if (realpath(lib, lib_buf) == nullptr) {
-						VERBOSE_MSG (1, "Warning! Could not get realpath of %s (from location)\n", lib);
-						p_lib = lib;
+					mme.perm_read = (permissions[0] == 'r');
+					mme.perm_write = (permissions[1] == 'w');
+					mme.perm_exec = (permissions[2] == 'x');
+
+					if (maps.capacity == maps.num_entries) {
+						maps.entries = (memory_maps_entry_t*) _af.realloc (maps.entries, (maps.capacity + 10) * sizeof(memory_maps_entry_t));
+						assert(maps.entries != nullptr);
+						maps.capacity += 10;
 					}
 
-					// Check if library matches
-					if (strcmp (p_module, p_lib) == 0)
-					{
-						if (baseOffset <= offset && offset < (baseOffset + (end - start))) {
-							baseAddress = start;
-							break; // Stop iterating
-						}
-					}
+					maps.entries[maps.num_entries] = mme;
+					maps.num_entries++;
 				}
 			}
 		}
 
 	fclose (mapsfile);
+	return true;
+}
+
+long CodeLocations::file_offset_to_address (const char *lib, unsigned long offset, bool& found)
+{
+	long baseAddress = 0;
+	unsigned long baseOffset = 0;
+	found = false;
+
+	for (unsigned i = 0; i < _maps_info.num_entries; i++)
+	{
+		const memory_maps_entry_t& mme = _maps_info.entries[i];
+
+		// Check for execution bits, ignore the rest
+		if (mme.perm_exec)
+		{
+			const char* module = mme.module;
+
+			char module_buf[PATH_MAX] = {0};
+			const char * p_module = module_buf;
+			if (realpath(module, module_buf) == nullptr)
+			{
+				VERBOSE_MSG (1, "Warning! Could not get realpath of %s (from /proc/self/maps)\n", module);
+				p_module = module;
+			}
+			char lib_buf[PATH_MAX] = {0};
+			const char * p_lib = lib_buf;
+			if (realpath(lib, lib_buf) == nullptr)
+			{
+				VERBOSE_MSG (1, "Warning! Could not get realpath of %s (from location)\n", lib);
+				p_lib = lib;
+			}
+
+			// Check if library matches
+			if (strcmp (p_module, p_lib) == 0)
+			{
+				if (mme.offset <= offset && offset < (mme.offset + (mme.end - mme.start)))
+				{
+					baseAddress = mme.start;
+					baseOffset = mme.offset;
+					found = true;
+					break; // Stop iterating
+				}
+			}
+		}
+	}
 
 	DBG("Base address for library (%s) -> %lx\n", lib, baseAddress);
-
 	return baseAddress + (offset - baseOffset);
 }
 
@@ -281,18 +314,157 @@ bool CodeLocations::process_raw_location (char *location_txt, location_t * locat
 		long offset = strtoul (frame+1, &endptr, 16);
 		assert (endptr <= frame+1+16);
 
-		long address = file_offset_to_address (module, offset);
+		bool found = false;
+		long address = file_offset_to_address (module, offset, found);
 
-		DBG("Offset %lx in file %s gets relocated to address %lx.\n",
-		  offset, module, address);
+		if (found)
+		{
+			DBG("Offset %lx in file %s gets relocated to address %lx.\n",
+			  offset, module, address);
+			location->frames.raw[f].frame = address;
+		}
+		else
+		{
+			DBG("Could not translate frame: '%s'!%08lx\n", module, offset);
+			location->frames.raw[f].frame = 0;
 
-		location->frames.raw[f].frame = address;
+			pending_module_t* mm = add_or_get_pending_module (module);
+			mm->nframes++;
+
+			pending_raw_frame_t* mf = (pending_raw_frame_t*) _af.malloc(sizeof(pending_raw_frame_t));
+			mf->index = f;
+			mf->module = mm;
+			mf->offset = offset;
+			mf->next = nullptr;
+
+			if (location->pending_frames == nullptr)
+				location->pending_frames = mf;
+			else
+			{
+				pending_raw_frame_t* last = location->pending_frames;
+				while (last->next != nullptr)
+					last = last->next;
+				last->next = mf;
+			}
+		}
 
 		prev_frame = strchr (endptr, '>') + 2;
 		frame = strchr (endptr, '!');
 	}
 
 	return true;
+}
+
+CodeLocations::pending_module_t* CodeLocations::get_pending_module(const char* path)
+{
+	pending_module_t* mm = _pending_modules;
+	while (mm != nullptr)
+	{
+		if (strcmp(path, mm->path) == 0)
+			return mm;
+		mm = mm->next;
+	}
+	return nullptr;
+}
+
+CodeLocations::pending_module_t* CodeLocations::add_or_get_pending_module(const char* path)
+{
+	pending_module_t* mm = _pending_modules;
+	pending_module_t* prev_mm = nullptr;
+	while (mm != nullptr)
+	{
+		if (strcmp(path, mm->path) == 0)
+			return mm;
+		prev_mm = mm;
+		mm = mm->next;
+	}
+	pending_module_t* new_mm = (pending_module_t*) _af.malloc(sizeof(pending_module_t));
+	if (prev_mm != nullptr)
+		prev_mm->next = new_mm;
+	else
+		_pending_modules = new_mm;
+	assert(strlen(path) <= PATH_MAX);
+	strncpy(new_mm->path, path, PATH_MAX);
+	new_mm->nframes = 0;
+	new_mm->next = nullptr;
+	return new_mm;
+}
+
+void CodeLocations::delete_unused_pending_modules(void)
+{
+	pending_module_t* mm = _pending_modules;
+	pending_module_t* prev_mm = nullptr;
+	while (mm != nullptr)
+	{
+		if (mm->nframes == 0)
+		{
+			pending_module_t* next = mm->next;
+			if (prev_mm != nullptr)
+				prev_mm->next = next;
+			else
+				_pending_modules = next;
+			_af.free(mm);
+			mm = next;
+		}
+		else
+		{
+			prev_mm = mm;
+			mm = mm->next;
+		}
+	}
+}
+
+void CodeLocations::translate_pending_frames(const char* module)
+{
+	load_memory_mappings_info(_maps_info);
+
+	pending_module_t* mod = get_pending_module(module);
+	if (mod != nullptr)
+	{
+		VERBOSE_MSG(0, "Pending library '%s' is loading, translating frames.\n", module);
+		for (unsigned l = 0; l < _nlocations; l++)
+		{
+			location_t* loc = &_locations[l];
+
+			pending_raw_frame_t* mf = loc->pending_frames;
+			pending_raw_frame_t* prev_mf = nullptr;
+			while (mf != nullptr)
+			{
+				// iterate over all pending frames because a library load will also load the shared libraries this depends on
+				bool found = false;
+				pending_raw_frame_t* mf_next = mf->next;
+				long address = file_offset_to_address (mf->module->path, mf->offset, found);
+				if (found)
+				{
+					loc->frames.raw[mf->index].frame = address;
+					mf->module->nframes--;
+
+					// delete pending_frame
+					if (prev_mf != nullptr)
+						prev_mf->next = mf_next;
+					else
+						loc->pending_frames = mf_next;
+					_af.free(mf);
+
+					// prepare next iter
+					mf = mf_next;
+				}
+				else
+				{
+					prev_mf = mf;
+					mf = mf_next;
+				}
+			}
+		}
+
+		if (mod->nframes > 0)
+		{
+			VERBOSE_MSG(0, "Warning! There are %u frames still pending for library '%s'\n", mod->nframes, mod->path);
+		}
+
+		delete_unused_pending_modules();
+		show_frames ();
+	}
 }
 
 bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name)
@@ -384,6 +556,11 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 		}
 	}
 
+	if (!options.sourceFrames())
+	{
+		load_memory_mappings_info(_maps_info);
+	}
+
 	_nlocations = 0;
 	for (char * p_current = p, *prevEOL = p; p_current != nullptr && p_current < &p[sb.st_size];
 			// prevEOL needs to be equal to p_current+1 except on the first iteration, as p_current points
@@ -412,6 +589,7 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 		}
 
 		_locations = (location_t*) _af.realloc (_locations, sizeof(location_t)*(_nlocations+1));
+		_locations[_nlocations].pending_frames = nullptr;
 
 		// Process source location and see if it is correctly processed (and not ignored).
 		if (options.sourceFrames() &&
