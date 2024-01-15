@@ -855,6 +855,8 @@ void CodeLocations::show_frames (void)
 
 void CodeLocations::show_hmem_visualizer_stats (const char *fallback_allocator_name)
 {
+	FILE* const outstream = options.messages_on_stderr() ? stderr : stdout;
+
 	if (_nlocations > 0)
 	{
 		VERBOSE_MSG(0, "Locations information:\n");
@@ -876,14 +878,14 @@ void CodeLocations::show_hmem_visualizer_stats (const char *fallback_allocator_n
 	{
 		if (al[u]->has_size() && al[u]->used())
 		{
-			fprintf (options.messages_on_stderr()?stderr:stdout, "#vis type=mem, name=%s, capacity=%lu\n",
+			fprintf (outstream, "#vis type=mem, name=%s, capacity=%lu\n",
 			  al[u]->name(), al[u]->size());
 		}
 		u++;
 	}
 
 	// Additional information for extra fields
-	fprintf (options.messages_on_stderr()?stderr:stdout, "#vis extra_field_0 = hatch\n");
+	fprintf (outstream, "#vis extra_field_0 = hatch\n");
 
 	// Data
 	// callstack;bytes;weight;memtype[;extrafield1;extrafield2;...]
@@ -899,26 +901,26 @@ void CodeLocations::show_hmem_visualizer_stats (const char *fallback_allocator_n
 			const raw_frame_t    * rf = &(_locations[l].frames.raw[0]);
 
 			if (options.sourceFrames())
-				fprintf (options.messages_on_stderr()?stderr:stdout, "%s:%d", fp->file, fp->line);
+				fprintf (outstream, "%s:%d", fp->file, fp->line);
 			else
-				fprintf (options.messages_on_stderr()?stderr:stdout, "%08lx", rf->frame);
+				fprintf (outstream, "%08lx", rf->frame);
 			for (unsigned f = 1; f < _locations[l].nframes; f++)
 			{
 				fp = &(_locations[l].frames.source[f]);
 				rf = &(_locations[l].frames.raw[f]);
 				if (options.sourceFrames())
-					fprintf (options.messages_on_stderr()?stderr:stdout, " > %s:%d", fp->file, fp->line);
+					fprintf (outstream, " > %s:%d", fp->file, fp->line);
 				else
-					fprintf (options.messages_on_stderr()?stderr:stdout, " > %08lx", rf->frame);
+					fprintf (outstream, " > %08lx", rf->frame);
 			}
 			//   bytes part
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%lu", _locations[l].stats.HWM);
+			fprintf (outstream, ";%lu", _locations[l].stats.HWM);
 			//   weight part
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%d", 0);
+			fprintf (outstream, ";%d", 0);
 			//   memtype part
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%s", allocator(l)->name());
+			fprintf (outstream, ";%s", allocator(l)->name());
 			//   EoL
-			fprintf (options.messages_on_stderr()?stderr:stdout, "\n");
+			fprintf (outstream, "\n");
 		}
 
 		// Second -- information on allocations that were served by the fallback allocator
@@ -928,28 +930,28 @@ void CodeLocations::show_hmem_visualizer_stats (const char *fallback_allocator_n
 			const source_frame_t * fp = &(_locations[l].frames.source[0]);
 			const raw_frame_t    * rf = &(_locations[l].frames.raw[0]);
 			if (options.sourceFrames())
-				fprintf (options.messages_on_stderr()?stderr:stdout, "%s:%d", fp->file, fp->line);
+				fprintf (outstream, "%s:%d", fp->file, fp->line);
 			else
-				fprintf (options.messages_on_stderr()?stderr:stdout, "%08lx", rf->frame);
+				fprintf (outstream, "%08lx", rf->frame);
 			for (unsigned f = 1; f < _locations[l].nframes; f++)
 			{
 				fp = &(_locations[l].frames.source[f]);
 				rf = &(_locations[l].frames.raw[f]);
 				if (options.sourceFrames())
-					fprintf (options.messages_on_stderr()?stderr:stdout, " > %s:%d", fp->file, fp->line);
+					fprintf (outstream, " > %s:%d", fp->file, fp->line);
 				else
-					fprintf (options.messages_on_stderr()?stderr:stdout, " > %08lx", rf->frame);
+					fprintf (outstream, " > %08lx", rf->frame);
 			}
 			//   bytes part
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%lu", _locations[l].stats.HWM_fb);
+			fprintf (outstream, ";%lu", _locations[l].stats.HWM_fb);
 			//   weight part
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%d", 0);
+			fprintf (outstream, ";%d", 0);
 			//   memtype part
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%s", fallback_allocator_name);
+			fprintf (outstream, ";%s", fallback_allocator_name);
 			//   extra field
-			fprintf (options.messages_on_stderr()?stderr:stdout, ";%d", 1);
+			fprintf (outstream, ";%d", 1);
 			//   EoL
-			fprintf (options.messages_on_stderr()?stderr:stdout, "\n");
+			fprintf (outstream, "\n");
 		}
 	}
 	VERBOSE_MSG(0, "-- HMEM visualizer results -- (end cut here) --\n");
