@@ -834,23 +834,16 @@ void malloc_interposer_start (void)
 
 	// Get fallback allocator, if given from environment.
 	// If not, we use the regular "posix" allocators as fallback.
-	if ((env = getenv (TOOL_FALLBACK_ALLOCATOR)) != nullptr)
+	if ((env = getenv (TOOL_FALLBACK_ALLOCATOR)) == nullptr)
 	{
-		fallback = allocators->get (env);
-		if (!fallback)
-		{
-			VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator. Exiting!\n", env);
-			_exit (2);
-		}
+		env = "posix";
+		DBG("No fallback allocator's name provided. Using the default one: \"%s\".\n", env);
 	}
-	else
+	fallback = allocators->get (env);
+	if (!fallback)
 	{
-		fallback = allocators->get ("posix");
-		if (!fallback)
-		{
-			VERBOSE_MSG(0, "Did not find allocator \"posix\" to be used as fallback allocator. Exiting!\n");
-			_exit (2);
-		}
+		VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator. Exiting!\n", env);
+		_exit (2);
 	}
 
 	if (! fallback->is_ready()) {
