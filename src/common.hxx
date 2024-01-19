@@ -30,6 +30,10 @@ class Options
 	bool _ignoreIfFallbackAllocator;
 	unsigned _read_offset_base;
 	size_t _max_offset_digits;
+	const char* _definitions_filename;
+	const char* _locations_filename;
+	const char* _fallback_allocator_name;
+	const char* _small_allocation_falback_allocator_name;
 
 	public:
 	Options ();
@@ -73,6 +77,14 @@ class Options
 	  { return _read_offset_base; }
 	size_t maxOffsetDigits (void) const
 	  { return _max_offset_digits; }
+	const char* definitionFileName (void) const
+	  { return _definitions_filename; }
+	const char* locationsFileName (void) const
+	  { return _locations_filename; }
+	const char* fallbackAllocatorName (void) const
+	  { return _fallback_allocator_name; }
+	const char* smallAllocationFallbackAllocatorName (void) const
+	  { return _small_allocation_falback_allocator_name; }
 };
 
 typedef struct allocation_functions_st

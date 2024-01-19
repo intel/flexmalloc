@@ -35,7 +35,7 @@ Options options;
 
 #define PROCESS_ENVVAR(envvar,var,defvalue) \
     do { \
-    char *s = getenv (envvar); \
+    const char *s = getenv (envvar); \
     if (s != nullptr) \
     { \
         if (CHECK_ENABLED(s)) \
@@ -52,7 +52,7 @@ Options options;
 Options::Options ()
 	: _minSize(0), _max_depth(100)
 {
-	char *verbose = getenv(TOOL_VERBOSE);
+	const char *verbose = getenv(TOOL_VERBOSE);
 	if (verbose != nullptr)
 	{
 		_VerboseLvl = atoi(verbose);
@@ -85,7 +85,7 @@ Options::Options ()
 	}
 
 	int msize = 0;
-	char *msize_threshold = getenv(TOOL_MINSIZE_THRESHOLD);
+	const char *msize_threshold = getenv(TOOL_MINSIZE_THRESHOLD);
 	if (msize_threshold != nullptr)
 		msize = atoi (msize_threshold);
 	if (msize < 0)
@@ -96,8 +96,24 @@ Options::Options ()
 	}
 	_minSize = msize;
 
+	const char *def_file = getenv (TOOL_DEFINITIONS_FILE);
+	if (def_file == nullptr)
+	{
+		VERBOSE_MSG(0, "Did not find " TOOL_DEFINITIONS_FILE " environment variable. Finishing...\n");
+		_exit (2);
+	}
+	_definitions_filename = def_file;
+
+	const char *loc_file = getenv (TOOL_LOCATIONS_FILE);
+	if (loc_file == nullptr)
+	{
+		VERBOSE_MSG(0, "Did not find " TOOL_LOCATIONS_FILE " environment variable. Finishing...\n");
+		_exit (2);
+	}
+	_locations_filename = loc_file;
+
 	int offset_base = READ_OFFSET_BASE_DEFAULT;
-	char *read_offset_base = getenv(TOOL_READ_OFFSET_BASE);
+	const char *read_offset_base = getenv(TOOL_READ_OFFSET_BASE);
 	if (read_offset_base != nullptr)
 		offset_base = atoi (read_offset_base);
 	if (offset_base < 0)
@@ -109,6 +125,26 @@ Options::Options ()
 	_read_offset_base = offset_base;
 	// At most, we have 16 digits long hexadecimal addresses in /proc/<id>/maps entries
 	_max_offset_digits = static_cast<size_t>(ceil(std::log(std::pow(16.0,16.0))/std::log(static_cast<double>(offset_base))));
+
+	// Get fallback allocator, if given from environment.
+	// If not, we use the regular "posix" allocators as fallback.
+	const char *fallback_alloc_name = getenv (TOOL_FALLBACK_ALLOCATOR);
+	if (fallback_alloc_name == nullptr)
+	{
+		fallback_alloc_name = "posix";
+		VERBOSE_MSG(0, "No fallback allocator's name provided. Using the default one: \"%s\".\n",
+		  fallback_alloc_name);
+	}
+	_fallback_allocator_name = fallback_alloc_name;
+
+	const char *small_alloc_fallback_name = getenv (TOOL_MINSIZE_THRESHOLD_ALLOCATOR);
+	if (small_alloc_fallback_name == nullptr)
+	{
+		small_alloc_fallback_name = _fallback_allocator_name;
+		VERBOSE_MSG(0, "No fallback allocator's name provided for small allocations. Using the default one: \"%s\".\n",
+		  small_alloc_fallback_name);
+	}
+	_small_allocation_falback_allocator_name = small_alloc_fallback_name;
 
 	struct timespec ts;
 	clock_gettime (CLOCK_MONOTONIC, &ts);

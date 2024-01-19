@@ -791,7 +791,7 @@ size_t malloc_usable_size (void *ptr)
 void malloc_interposer_start (void) __attribute__((constructor));
 void malloc_interposer_start (void)
 {
-	char *env;
+	const char *env;
 
 	VERBOSE_MSG(0, "Initializing " TOOL_NAME " " PACKAGE_VERSION "... \n");
 
@@ -820,25 +820,15 @@ void malloc_interposer_start (void)
 	}
 
 	// Get memory definitions from environment
-	if ((env = getenv (TOOL_DEFINITIONS_FILE)) != nullptr)
+	if ((env = options.definitionFileName ()) != nullptr)
 	{
 		allocators = (Allocators*) real_allocation_functions.malloc (sizeof(Allocators));
 		assert (allocators != nullptr);
-		new (allocators) Allocators (real_allocation_functions, getenv(TOOL_DEFINITIONS_FILE));
-	}
-	else
-	{
-		VERBOSE_MSG(0, "Did not find " TOOL_DEFINITIONS_FILE " environment variable. Finishing...\n");
-		_exit (2);
+		new (allocators) Allocators (real_allocation_functions, env);
 	}
 
-	// Get fallback allocator, if given from environment.
-	// If not, we use the regular "posix" allocators as fallback.
-	if ((env = getenv (TOOL_FALLBACK_ALLOCATOR)) == nullptr)
-	{
-		env = "posix";
-		DBG("No fallback allocator's name provided. Using the default one: \"%s\".\n", env);
-	}
+	// Get fallback allocator as set in Options
+	env = options.fallbackAllocatorName ();
 	fallback = allocators->get (env);
 	if (!fallback)
 	{
@@ -883,7 +873,7 @@ void malloc_interposer_start (void)
 	// that will handle small allocations
 	if (options.minSize() > 0)
 	{
-		if ((env = getenv (TOOL_MINSIZE_THRESHOLD_ALLOCATOR)) != nullptr)
+		if ((env = options.smallAllocationFallbackAllocatorName ()) != nullptr)
 		{
 			fallback_smallAllocation = allocators->get (env);
 			if (!fallback_smallAllocation)
@@ -907,17 +897,12 @@ void malloc_interposer_start (void)
 	fallback->used(true);
 
 	// If the user has given a file pointing to callstacks, parse and enable runtime
-	if ((env = getenv (TOOL_LOCATIONS_FILE)) != nullptr)
+	if ((env = options.locationsFileName()) != nullptr)
 	{
 		codelocations = (CodeLocations*) real_allocation_functions.malloc (sizeof(CodeLocations));
 		assert (codelocations != nullptr);
 		new (codelocations) CodeLocations (real_allocation_functions, allocators);
 		codelocations->readfile (env, fallback->name());
-	}
-	else
-	{
-		VERBOSE_MSG(0, "Did not find " TOOL_LOCATIONS_FILE " environment variable. Finishing...\n");
-		_exit (2);
 	}
 
 	// Allocate main flexmalloc object
