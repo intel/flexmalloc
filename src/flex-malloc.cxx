@@ -244,6 +244,7 @@ void FlexMalloc::parse_map_files (void)
 							assert (_modules[_nmodules].name != nullptr);
 							_modules[_nmodules].startAddress = start;
 							_modules[_nmodules].endAddress = end;
+							_modules[_nmodules].offset = offset;
 							_modules[_nmodules].bfd = new BFDManager;
 							_modules[_nmodules].symbolsLoaded =
 							  _modules[_nmodules].bfd->load_binary (_modules[_nmodules].name);
@@ -293,13 +294,11 @@ Allocator * FlexMalloc::allocatorForCallstack_source (unsigned nptrs, void **cal
 		// Process each callstack frame. Check on which module it resides, compute effective address
 		// and then translate it using BFD (if possible)
 
-		translated_frame_t tf[nptrs];
+		// Initialize data structure
+		translated_frame_t tf[nptrs] = {};
 		unsigned n_translated_frames = 0;
 		unsigned highest_translated_frame = 0;
 		bool any_translated = false;
-
-		// Initialize data structure
-		memset (tf, 0, sizeof(translated_frame_t)*nptrs);
 
 		for (unsigned frame = 0; frame < nptrs; frame++)
 		{
@@ -314,10 +313,7 @@ Allocator * FlexMalloc::allocatorForCallstack_source (unsigned nptrs, void **cal
 			for (unsigned m = 0; m < _nmodules; ++m)
 				if (_modules[m].startAddress <= lptr && lptr <= _modules[m].endAddress && _modules[m].symbolsLoaded)
 				{
-					if (m != 0) // If we're looking into a module, substract its base address
-						effective_address = (void*) ((long) callstack[frame] - _modules[m].startAddress);
-					else
-						effective_address = callstack[frame];
+					effective_address = (void*) ((long) callstack[frame] - _modules[m].startAddress + _modules[m].offset);
 
 					DBG("Frame %d hit module #%d (%s) and effective address is %p\n", frame, m+1, _modules[m].name, effective_address);
 
