@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if test $# -lt 1
+then
+    echo ERROR: Missing parameters...
+    exit 99
+fi
+
+testres=0
+
+while test $# -gt 0
+do
+    testname="$1"
+    shift
+    env \
+        FLEXMALLOC_DEFINITIONS=@srcdir@/base-memory-configuration   \
+        FLEXMALLOC_LOCATIONS=@srcdir@/"$testname"-locations         \
+        LD_PRELOAD=@top_builddir@/src/.libs/libflexmalloc_dbg.so    \
+        "$testname"
+    crt_testres=$?
+    if test $crt_testres -ne 0
+    then
+        # Forward erroneous exit status to the script
+        testres=$crt_testres
+    fi
+done
+
+exit $testres
+

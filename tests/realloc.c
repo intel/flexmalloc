@@ -17,5 +17,5 @@ int main (int argc, char *argv[])
 	}
 	printf ("c = %p\n", (void*)c);
 	free (ptr);
-	return 0;
+	return EXIT_SUCCESS;
 }

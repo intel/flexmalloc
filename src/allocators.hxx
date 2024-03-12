@@ -18,7 +18,7 @@
 class Allocators
 {
 	private:
-	Allocator * allocators[NUM_ALLOCATORS+1]; // +1 for null-terminated
+	Allocator * allocators[NUM_ALLOCATORS+2]; // +1 for null-terminated +1 debug (optionnal)
 
 	public:
 	Allocators (allocation_functions_t &, const char * definitions);
