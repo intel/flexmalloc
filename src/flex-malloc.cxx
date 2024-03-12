@@ -592,7 +592,7 @@ void * FlexMalloc::realloc (unsigned nptrs, void **callstack, void *ptr, size_t 
 				if (res == nullptr)
 				{
 					VERBOSE_MSG (0, "Could not allocate space for memcpy operation on default allocator. Exiting...\n");
-					_exit (0);
+					_exit (1);
 				}
 			}
 			else
@@ -601,7 +601,7 @@ void * FlexMalloc::realloc (unsigned nptrs, void **callstack, void *ptr, size_t 
 				if (res == nullptr)
 				{
 					VERBOSE_MSG (0, "Could not allocate space for memcpy operation on allocator (%s). Exiting...\n", new_allocator->name());
-					_exit (0);
+					_exit (1);
 				}
 			}
 

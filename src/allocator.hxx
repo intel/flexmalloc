@@ -5,8 +5,8 @@
 #pragma once
 
 #include <assert.h>
+#include <string.h>
 #include "common.hxx"
-#include "allocator-statistics.hxx"
 
 class Allocator
 {
@@ -68,7 +68,8 @@ class Allocator
 	virtual void*  realloc (void *, size_t) = 0;
 	virtual size_t malloc_usable_size (void*) = 0;
 
-	virtual void *memcpy (void *dest, const void *src, size_t n) = 0;
+	virtual void *memcpy (void *dest, const void *src, size_t n)
+	  { return ::memcpy(dest, src, n); }
 
 	virtual void configure (const char *) = 0;
 	virtual bool is_ready (void) const { return _is_ready; };
@@ -83,14 +84,21 @@ class Allocator
 
 	virtual bool fits (size_t s) const = 0;
 	virtual size_t hwm (void) const = 0;
+
+	virtual void record_malloc (size_t) = 0;
+	virtual void record_calloc (size_t) = 0;
+	virtual void record_aligned_malloc (size_t) = 0;
+	virtual void record_realloc (size_t size, size_t prev_size) = 0;
+	virtual void record_free (size_t) = 0;
+
+	virtual void record_source_realloc (size_t s) = 0;
+	virtual void record_target_realloc (size_t s) = 0;
+	virtual void record_self_realloc (size_t s) = 0;
+
 	virtual void record_unfitted_malloc (size_t) = 0;
 	virtual void record_unfitted_calloc (size_t) = 0;
 	virtual void record_unfitted_aligned_malloc (size_t) = 0;
 	virtual void record_unfitted_realloc (size_t) = 0;
-
-	virtual void record_source_realloc (size_t) = 0;
-	virtual void record_target_realloc (size_t) = 0;
-	virtual void record_self_realloc (size_t) = 0;
 
 	virtual void record_realloc_forward_malloc (void) = 0;
 };

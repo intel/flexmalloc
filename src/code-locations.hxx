@@ -51,8 +51,8 @@ class CodeLocations
 	typedef struct st_pending_raw_frame
 	{
 		pending_module_t* module;
-		long offset;
-		unsigned index;
+		size_t offset;
+		size_t index;
 		struct st_pending_raw_frame* next;
 	} pending_raw_frame_t;
 
@@ -73,9 +73,9 @@ class CodeLocations
 	#define LINE_SIZE 2048
 	typedef struct
 	{
-		unsigned long start;
-		unsigned long end;
-		unsigned long offset;
+		size_t start;
+		size_t end;
+		size_t offset;
 		char module[LINE_SIZE+1];
 		bool perm_read;
 		bool perm_write;
@@ -115,7 +115,7 @@ class CodeLocations
 	bool process_raw_location (char *location_txt, location_t * location, const char * fallback_allocator_name);
 	void clean_source_location (location_t * location);
 	void show_frames (void);
-	long file_offset_to_address (const char *lib, unsigned long address, bool& found);
+	size_t file_offset_to_address (const char *lib, size_t address, bool& found);
 	void create_fast_indexes_for_frames (void);
 	bool load_memory_mappings_info (memory_maps_t& maps);
 	pending_module_t* get_pending_module(const char* path);

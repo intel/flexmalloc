@@ -21,17 +21,7 @@ Allocator::Header_t * Allocator::getAllocatorHeader (void * ptr)
 
 void * Allocator::generateAllocatorHeader (void *ptr, Allocator *a, size_t s)
 {
-	// Calculate new storage address
-	void *res = (void*) (((uintptr_t) ptr) + ALLOCATOR_HEADER_SZ);
-
-	// Record the header contents
-	Header_t *hdr = getAllocatorHeader (res);
-	hdr->allocator = a;
-	hdr->base_ptr = ptr;
-	hdr->size = s;
-	hdr->aux.u64[0] = 0; // Reset AUX field
-
-	return res;
+	return generateAllocatorHeader (ptr, 0, a, s);
 }
 
 void * Allocator::generateAllocatorHeader (void *ptr, size_t extrabytes, Allocator *a, size_t s)
@@ -53,20 +43,14 @@ void * Allocator::generateAllocatorHeaderOnAligned (void *ptr, size_t align, All
 {
 	// Calculate new storage address
 	void * res = (void*) align_to (((uintptr_t) ptr + ALLOCATOR_HEADER_SZ), align);
+	size_t padded_align = (uintptr_t) res - (uintptr_t) ptr;
 
 	// Well-aligned given the requested alignment
 	assert ( ( (uintptr_t) res & (align - 1) ) == 0);
 	// Ensure enough space for a header between newptr and baseptr
-	assert ( ( (uintptr_t) res - (uintptr_t) ptr ) >= ALLOCATOR_HEADER_SZ );
+	assert ( padded_align >= ALLOCATOR_HEADER_SZ );
 
-	// Record the header contents
-	Header_t *hdr = getAllocatorHeader (res);
-	hdr->allocator = a;
-	hdr->base_ptr = ptr;
-	hdr->size = s;
-	hdr->aux.u64[0] = 0; // Reset AUX field
-
-	return res;
+	return generateAllocatorHeader(ptr, padded_align - ALLOCATOR_HEADER_SZ, a, s);
 }
 
 Allocator::Allocator (allocation_functions_t &af)
