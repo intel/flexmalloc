@@ -91,7 +91,7 @@ where `binary and params` refers to the binary to be executed and the parameters
 
 ## Copyrights
 
-&copy; 2022 Harald Servat, Intel Corporation
+&copy; 2024 Harald Servat, Intel Corporation
 
 Intel is a trademark of Intel Corporation or its subsidiaries.
 
