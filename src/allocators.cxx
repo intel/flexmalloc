@@ -127,7 +127,7 @@ Allocators::Allocators (allocation_functions_t &af, const char *definitions)
 			else
 			{
 				VERBOSE_MSG(0, "Allocator %s is not registered.\n", allocatorname);
-				exit (0);
+				exit (2);
 			}
 		}
 		defs = strchr (defs+count+1, '#'); // Search for next # Memory configuration

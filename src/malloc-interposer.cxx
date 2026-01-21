@@ -791,7 +791,7 @@ size_t malloc_usable_size (void *ptr)
 void malloc_interposer_start (void) __attribute__((constructor));
 void malloc_interposer_start (void)
 {
-	char *env;
+	const char *env;
 
 	VERBOSE_MSG(0, "Initializing " TOOL_NAME " " PACKAGE_VERSION "... \n");
 
@@ -816,46 +816,29 @@ void malloc_interposer_start (void)
 	    real_allocation_functions.malloc_usable_size == nullptr)
 	{
 		VERBOSE_MSG(0, "Could not find malloc/calloc/free/realloc/posix_memalign/malloc_usable_size symbols in DSOs.");
-		_exit (0);
+		_exit (-1);
 	}
 
 	// Get memory definitions from environment
-	if ((env = getenv (TOOL_DEFINITIONS_FILE)) != nullptr)
+	if ((env = options.definitionFileName ()) != nullptr)
 	{
 		allocators = (Allocators*) real_allocation_functions.malloc (sizeof(Allocators));
 		assert (allocators != nullptr);
-		new (allocators) Allocators (real_allocation_functions, getenv(TOOL_DEFINITIONS_FILE));
-	}
-	else
-	{
-		VERBOSE_MSG(0, "Did not find " TOOL_DEFINITIONS_FILE " environment variable. Finishing...\n");
-		_exit (0);
+		new (allocators) Allocators (real_allocation_functions, env);
 	}
 
-	// Get fallback allocator, if given from environment.
-	// If not, we use the regular "posix" allocators as fallback.
-	if ((env = getenv (TOOL_FALLBACK_ALLOCATOR)) != nullptr)
+	// Get fallback allocator as set in Options
+	env = options.fallbackAllocatorName ();
+	fallback = allocators->get (env);
+	if (!fallback)
 	{
-		fallback = allocators->get (env);
-		if (!fallback)
-		{
-			VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator. Exiting!\n", env);
-			_exit (0);
-		}
-	}
-	else
-	{
-		fallback = allocators->get ("posix");
-		if (!fallback)
-		{
-			VERBOSE_MSG(0, "Did not find allocator \"posix\" to be used as fallback allocator. Exiting!\n");
-			_exit (0);
-		}
+		VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator. Exiting!\n", env);
+		_exit (2);
 	}
 
 	if (! fallback->is_ready()) {
 		VERBOSE_MSG(0, "The fallback allocator '%s' is not ready. Check if its parameters in the configuration file are correct. Exiting!\n", fallback->name());
-		_exit (0);
+		_exit (2);
 	}
 
 	VERBOSE_MSG(0, "Fallback allocator set to '%s'\n", fallback->name());
@@ -890,18 +873,18 @@ void malloc_interposer_start (void)
 	// that will handle small allocations
 	if (options.minSize() > 0)
 	{
-		if ((env = getenv (TOOL_MINSIZE_THRESHOLD_ALLOCATOR)) != nullptr)
+		if ((env = options.smallAllocationFallbackAllocatorName ()) != nullptr)
 		{
 			fallback_smallAllocation = allocators->get (env);
 			if (!fallback_smallAllocation)
 			{
 				VERBOSE_MSG(0, "Did not find allocator \"%s\" to be used as fallback allocator for small allocations. Exiting!\n", env);
-				_exit (0);
+				_exit (2);
 			}
 
 			if (! fallback_smallAllocation->is_ready()) {
 				VERBOSE_MSG(0, "The fallback allocator for small allocations '%s' is not ready. Check if its parameters in the configuration file are correct.\n", fallback_smallAllocation->name());
-				_exit (0);
+				_exit (2);
 			}
 		}
 		else
@@ -914,17 +897,12 @@ void malloc_interposer_start (void)
 	fallback->used(true);
 
 	// If the user has given a file pointing to callstacks, parse and enable runtime
-	if ((env = getenv (TOOL_LOCATIONS_FILE)) != nullptr)
+	if ((env = options.locationsFileName()) != nullptr)
 	{
 		codelocations = (CodeLocations*) real_allocation_functions.malloc (sizeof(CodeLocations));
 		assert (codelocations != nullptr);
 		new (codelocations) CodeLocations (real_allocation_functions, allocators);
 		codelocations->readfile (env, fallback->name());
-	}
-	else
-	{
-		VERBOSE_MSG(0, "Did not find " TOOL_LOCATIONS_FILE " environment variable. Finishing...\n");
-		_exit (0);
 	}
 
 	// Allocate main flexmalloc object
