@@ -12,37 +12,41 @@ libflexmalloc_la_SOURCES = \
  cache-callstack.cxx cache-callstack.hxx \
  flex-malloc.cxx flex-malloc.hxx \
  malloc-interposer.cxx
-libflexmalloc_dbg_la_SOURCES = $(libflexmalloc_la_SOURCES)
+libflexmalloc_dbg_la_SOURCES = $(libflexmalloc_la_SOURCES) \
+ allocator-debug.cxx allocator-debug.hxx
 
-libflexmalloc_la_CXXFLAGS      = -O3 -DNDEBUG -Wall -Wextra -std=c++11 -I.. -I$(BINUTILS_HOME)/include -pthread
-libflexmalloc_la_LDFLAGS       = -DNDEBUG -ldl -L$(BINUTILS_HOME)/lib -lbfd -liberty -lpthread
-libflexmalloc_dbg_la_CXXFLAGS  = -O3 -Wall -Wextra -DDEBUG -std=c++11 -I.. -I$(BINUTILS_HOME)/include -pthread
-libflexmalloc_dbg_la_LDFLAGS   = -ldl -L$(BINUTILS_HOME)/lib -lbfd -liberty -lpthread
+libflexmalloc_la_CPPFLAGS      = -DNDEBUG -I$(BINUTILS_HOME)/include
+libflexmalloc_la_CXXFLAGS      = -O3 -Wall -Wextra -std=c++11 -pthread
+libflexmalloc_la_LDFLAGS       = -ldl -L$(BINUTILS_HOME)/lib -lbfd -liberty -lpthread
+libflexmalloc_dbg_la_CPPFLAGS  = -DDEBUG -I$(BINUTILS_HOME)/include
+libflexmalloc_dbg_la_CXXFLAGS  = $(libflexmalloc_la_CXXFLAGS)
+libflexmalloc_dbg_la_LDFLAGS   = $(libflexmalloc_la_LDFLAGS)
 
 if HAVE_MEMKIND
 libflexmalloc_la_SOURCES       += \
  allocator-memkind-hbwmalloc.cxx allocator-memkind-hbwmalloc.hxx \
  allocator-memkind-pmem.cxx allocator-memkind-pmem.hxx
-libflexmalloc_la_CXXFLAGS      += -I$(MEMKIND_HOME)/include
+libflexmalloc_la_CPPFLAGS      += -I$(MEMKIND_HOME)/include
 libflexmalloc_la_LDFLAGS       += -L$(MEMKIND_HOME)/lib -lmemkind -R $(MEMKIND_HOME)/lib -lnuma
-libflexmalloc_dbg_la_CXXFLAGS  += -I$(MEMKIND_HOME)/include
+libflexmalloc_dbg_la_CPPFLAGS  += -I$(MEMKIND_HOME)/include
 libflexmalloc_dbg_la_LDFLAGS   += -L$(MEMKIND_HOME)/lib -lmemkind -R $(MEMKIND_HOME)/lib -lnuma
 endif
 
 if HAVE_PAPI
-libflexmalloc_la_CXXFLAGS      += -DHWC -I$(PAPI_HOME)/include
+libflexmalloc_la_CPPFLAGS      += -DHWC -I$(PAPI_HOME)/include
 libflexmalloc_la_LDFLAGS       += -L$(PAPI_HOME)/lib -lpapi -R $(PAPI_HOME)/lib
-libflexmalloc_dbg_la_CXXFLAGS  += -DHWC -I$(PAPI_HOME)/include
+libflexmalloc_dbg_la_CPPFLAGS  += -DHWC -I$(PAPI_HOME)/include
 libflexmalloc_dbg_la_LDFLAGS   += -L$(PAPI_HOME)/lib -lpapi -R $(PAPI_HOME)/lib
 endif
 
 if HAVE_PMDK
-libflexmalloc_la_CXXFLAGS      += -I$(PMDK_HOME)/include
+libflexmalloc_la_CPPFLAGS      += -I$(PMDK_HOME)/include
 libflexmalloc_la_LDFLAGS       += -L$(PMDK_HOME)/lib -lpmem -R $(PMDK_HOME)/lib
-libflexmalloc_dbg_la_CXXFLAGS  += -I$(PMDK_HOME)/include
+libflexmalloc_dbg_la_CPPFLAGS  += -I$(PMDK_HOME)/include
 libflexmalloc_dbg_la_LDFLAGS   += -L$(PMDK_HOME)/lib -lpmem -R $(PMDK_HOME)/lib
 endif
 
 libcounter_la_SOURCES          = counter.cxx
-libcounter_la_CXXFLAGS         = -O3 -DNDEBUG -Wall -Wextra -std=c++11
-libcounter_la_LDFLAGS          = -DNDEBUG -ldl
+libcounter_la_CPPFLAGS         = -DNDEBUG
+libcounter_la_CXXFLAGS         = -O3 -Wall -Wextra -std=c++11
+libcounter_la_LDFLAGS          = -ldl

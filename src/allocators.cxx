@@ -17,6 +17,9 @@
 #include "common.hxx"
 
 #include "allocators.hxx"
+#if defined(DEBUG)
+#include "allocator-debug.hxx"
+#endif
 #include "allocator-posix.hxx"
 #if defined(MEMKIND_SUPPORTED)
 # include "allocator-memkind-hbwmalloc.hxx"
@@ -34,6 +37,10 @@ Allocators::Allocators (allocation_functions_t &af, const char *definitions)
 #endif
 	void *a_posix = (AllocatorPOSIX*) malloc (sizeof(AllocatorPOSIX));
 	allocators[indx++] = new (a_posix) AllocatorPOSIX(af);
+#if defined(DEBUG)
+	void *a_debug = (AllocatorDebug*) malloc (sizeof(AllocatorDebug));
+	allocators[indx++] = new (a_debug) AllocatorDebug(af, * (AllocatorPOSIX*) a_posix);
+#endif
 	allocators[indx]   = nullptr;
 
 	// Objects have been already initialized when constructing (allocating them) -- just use

@@ -272,6 +272,12 @@ long CodeLocations::file_offset_to_address (const char *lib, unsigned long offse
 					found = true;
 					break; // Stop iterating
 				}
+				DBG("\"%s\" (p_module) same as \"%s\" (p_lib)\n", p_module, p_lib);
+				DBG("baseOffset: %zu, offset: %zu\n", baseOffset, offset);
+			}
+			else
+			{
+				DBG("\"%s\" (p_module) different from \"%s\" (p_lib)\n", p_module, p_lib);
 			}
 		}
 	}
@@ -574,7 +580,7 @@ bool CodeLocations::readfile (const char *f, const char *fallback_allocator_name
 			break;
 
 		// If there are locations, make sure that we start in the line that contains the @
-		for (char *nextEOL = strchr (prevEOL + 1, '\n');
+		for (char *nextEOL = strchr (prevEOL, '\n');
 				nextEOL != nullptr && nextEOL < nextAT;
 				nextEOL = strchr (prevEOL, '\n'))
 		{
